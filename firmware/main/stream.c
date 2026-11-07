@@ -13,7 +13,7 @@
 #define SENDER_STACK 4096
 #define SENDER_PRIORITY 5
 #define HEADER_SIZE sizeof(uint32_t)
-#define SINGLE_CAPTURE_FLAG 0x80000000u
+#define FLAG_BITS (STREAM_SINGLE_CAPTURE | STREAM_SINGLE_FILLING)
 #define MAX_ECHO_SIZE 32
 #define MAX_BINARY_SIZE CONTROL_MAX_MESSAGE
 
@@ -120,11 +120,11 @@ void stream_broadcast_text(const char *text) {
     send_to_clients(&frame);
 }
 
-void stream_publish(const uint8_t *frames, size_t length, bool single_capture) {
+void stream_publish(const uint8_t *frames, size_t length, uint32_t flags) {
     if (length <= s_capacity - HEADER_SIZE) {
         xSemaphoreTake(s_latest_lock, portMAX_DELAY);
-        s_sequence = (s_sequence + 1) & ~SINGLE_CAPTURE_FLAG;
-        const uint32_t header = s_sequence | (single_capture ? SINGLE_CAPTURE_FLAG : 0);
+        s_sequence = (s_sequence + 1) & ~FLAG_BITS;
+        const uint32_t header = s_sequence | (flags & FLAG_BITS);
         s_latest_size = HEADER_SIZE + length;
         memcpy(s_latest, &header, HEADER_SIZE);
         memcpy(&s_latest[HEADER_SIZE], frames, length);

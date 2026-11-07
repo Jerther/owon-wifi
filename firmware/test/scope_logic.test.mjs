@@ -723,6 +723,18 @@ test('test_given_plain_header_when_isSingleCapture_then_false', () => {
   assert.equal(logic.isSingleCapture(flaggedMessage(0x29)), false);
 });
 
+test('test_given_filling_flag_when_isSingleFilling_then_true', () => {
+  assert.equal(logic.isSingleFilling(flaggedMessage(0x40000029)), true);
+});
+
+test('test_given_capture_flag_when_isSingleFilling_then_false', () => {
+  assert.equal(logic.isSingleFilling(flaggedMessage(0x80000029)), false);
+});
+
+test('test_given_filling_flag_when_readSequence_then_flag_removed', () => {
+  assert.equal(logic.readSequence(flaggedMessage(0x40000029)), 41);
+});
+
 test('test_given_flagged_header_when_readSequence_then_flag_removed', () => {
   assert.equal(logic.readSequence(flaggedMessage(0x80000029)), 41);
 });

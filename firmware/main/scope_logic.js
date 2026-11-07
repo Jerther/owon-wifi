@@ -50,6 +50,8 @@ const NON_ROLL_SKIP = 50;
 const ROLL_SKIP = 100;
 const SEQUENCE_SIZE = 4;
 const SINGLE_CAPTURE_FLAG = 0x80000000;
+const SINGLE_FILLING_FLAG = 0x40000000;
+const FRAME_CURSOR_OFFSET = 9;
 const CMD_WRITE_REGISTERS = 0x01;
 const CMD_SET_MODE = 0x02;
 const FORCE_TRIGGER_VALUE = 3;
@@ -419,11 +421,16 @@ export function createFrameSlot() {
 }
 
 export function readSequence(message) {
-  return (new DataView(message).getUint32(0, true) & ~SINGLE_CAPTURE_FLAG) >>> 0;
+  return (new DataView(message).getUint32(0, true) & ~(SINGLE_CAPTURE_FLAG | SINGLE_FILLING_FLAG)) >>> 0;
 }
 
 export function isSingleCapture(message) {
   return (new DataView(message).getUint32(0, true) & SINGLE_CAPTURE_FLAG) !== 0;
+}
+
+// Frames of a single after its trigger, while a roll-mode buffer fills up.
+export function isSingleFilling(message) {
+  return (new DataView(message).getUint32(0, true) & SINGLE_FILLING_FLAG) !== 0;
 }
 
 export function frameCount(messageLength) {
@@ -436,7 +443,7 @@ export function parseFrameInto(message, frameIndex, roll, slots) {
   const base = SEQUENCE_SIZE + frameIndex * FRAME_SIZE;
   const view = new DataView(message, base, FRAME_SIZE);
   const slot = slots[view.getUint8(0) & 1];
-  const cursor = SAMPLES - clip(view.getUint16(9, true), 0, SAMPLES);
+  const cursor = SAMPLES - clip(view.getUint16(FRAME_CURSOR_OFFSET, true), 0, SAMPLES);
   const skip = roll ? ROLL_SKIP : NON_ROLL_SKIP;
   slot.channel = view.getUint8(0) & 1;
   slot.timeSum = view.getUint32(1, true);

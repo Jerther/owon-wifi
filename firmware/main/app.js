@@ -3,7 +3,7 @@ import {
   autosetChannel, buildAllWrites, buildCsv, buildForceTriggerWrites, buildChannelWrites, buildSamplingWrites,
   buildTriggerWrites, captureSetup, channelMask, clip, computeSpectrum, createFft, createFrameSlot, displayMapping,
   displayedTriggerPosition, encodeMode, encodeWrites, fftSizeFor, forceGround, formatSi, frameCount, frameMinMax,
-  fullScaleVolts, hannWindow, isSingleCapture, levelDivAtMidpoint, levelDivAtScreen, levelDivForRange, measure,
+  fullScaleVolts, hannWindow, isSingleCapture, isSingleFilling, levelDivAtMidpoint, levelDivAtScreen, levelDivForRange, measure,
   offsetAtScreen, parseFlash, parseFrameInto, positionAtScreen,
   rateIndexForPeriod, readSequence, restoreSettings, runModeFor, sampleScale, sampleTimeSeconds, samplingFor,
   screenToVolts, timeRangeSeconds, voltsPerDivision,
@@ -42,6 +42,7 @@ const app = {
   link: 'offline',
   acquire: RUN,
   singleCount: 0,
+  singleFilling: false,
   capture: null,
   lastFrameAt: 0,
   lastTap: null,
@@ -235,10 +236,9 @@ function parseEvent(text) {
 }
 
 // Frames from before a Single press are still on their way: only the board's own capture ends a single.
-// In roll mode a single shows the screen filling up until then.
+// In roll mode the frames after the trigger show the screen filling up.
 function acceptsFrame(message) {
-  const rolling = samplingFor(app.store.settings.rateIndex).roll;
-  return app.acquire === RUN || (singleArmed() && (rolling || isSingleCapture(message)));
+  return app.acquire === RUN || (singleArmed() && (isSingleFilling(message) || isSingleCapture(message)));
 }
 
 function onBinary(message) {
@@ -459,8 +459,7 @@ function acquisitionState() {
   } else if (app.acquire === RUN) {
     name = runningState();
   } else if (singleArmed()) {
-    // Roll mode shows the screen filling up rather than a wait.
-    name = samplingFor(app.store.settings.rateIndex).roll ? 'filling' : 'armed';
+    name = app.singleFilling ? 'filling' : 'armed';
   }
   return name;
 }
@@ -494,6 +493,7 @@ function setAcquire(acquire) {
   app.acquire = acquire;
   app.latest = null;
   app.singleCount = acquire === RUN ? 0 : app.singleCount;
+  app.singleFilling = false;
   if (app.flash && acquire === STOP) {
     sendMode();
   } else if (app.flash) {
@@ -651,6 +651,9 @@ function consumeLatest() {
   } else if (singleArmed() && isSingleCapture(message)) {
     app.acquire = STOP;
     app.singleCount++;
+    refreshState();
+  } else if (singleArmed() && !app.singleFilling) {
+    app.singleFilling = true;
     refreshState();
   }
   app.dirty = true;
