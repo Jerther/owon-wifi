@@ -1,0 +1,5 @@
+<templates>
+  <t t-name="owon.StatusPill">
+    <span class="status-pill" t-att-data-tone="display.tone"><t t-esc="text"/></span>
+  </t>
+</templates>

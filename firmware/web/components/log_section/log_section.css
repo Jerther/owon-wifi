@@ -1,0 +1,4 @@
+.log-box {
+  margin: 0; height: 40vh; overflow: auto; padding: 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg); font: 12px ui-monospace, monospace; white-space: pre-wrap;
+}

@@ -1,0 +1,4 @@
+.status-pill { padding: 4px 12px; border-radius: 12px; font-weight: 600; background: var(--neutral-bg); color: var(--neutral-fg); }
+.status-pill[data-tone="ok"] { background: var(--ok-bg); color: var(--ok-fg); }
+.status-pill[data-tone="warn"] { background: var(--warn-bg); color: var(--warn-fg); }
+.status-pill[data-tone="bad"] { background: var(--bad-bg); color: var(--bad-fg); }

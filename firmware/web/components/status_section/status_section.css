@@ -1,0 +1,2 @@
+.status-list { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.status-list dt, .status-list dd { margin: 0; }

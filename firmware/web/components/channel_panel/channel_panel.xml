@@ -1,0 +1,24 @@
+<templates>
+  <t t-name="owon.ChannelPanel">
+    <section class="control-panel panel">
+      <div class="control-head">
+        <h2 t-att-class="toneClass"><t t-esc="title"/></h2>
+        <ToggleButton path="path + '.on'" label="'On'" disabled="lastOneOn"/>
+      </div>
+      <div class="control-line">
+        <span class="muted">Range</span>
+        <StepperSelect path="path + '.rangeIndex'" options="ranges" label="title + ' volts per division'"
+                       minusLabel="'Smaller volts per division'" plusLabel="'Larger volts per division'"/>
+      </div>
+      <SliderField label="'Position'" path="path + '.offset'" min="-0.45" max="0.45" step="0.01" text="offsetText"/>
+      <div class="control-line">
+        <span class="muted">Coupling</span>
+        <SegmentedChoice path="path + '.coupling'" options="constructor.COUPLINGS"/>
+      </div>
+      <div class="control-line">
+        <span class="muted">Probe</span>
+        <SegmentedChoice path="path + '.probe'" options="constructor.PROBES"/>
+      </div>
+    </section>
+  </t>
+</templates>

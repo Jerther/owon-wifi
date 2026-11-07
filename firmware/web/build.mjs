@@ -5,6 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import zlib from 'node:zlib';
 
 const WEB_DIR = path.dirname(new URL(import.meta.url).pathname);
@@ -12,6 +13,7 @@ const OWL_FILE = path.join(WEB_DIR, 'lib', 'owl.iife.min.js');
 const ENTRY_PATTERN = /<script type="module" src="([^"]+)"><\/script>/;
 const IMPORT_PATTERN = /^import\s[\s\S]*?\sfrom\s+'([^']+)';\s*$/gm;
 const EXPORT_PATTERN = /^export (?=(async )?(function|const|let|class)\b)/gm;
+const DECLARATION_PATTERN = /^(?:export )?(?:async )?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)/gm;
 
 function resolveImport(fromFile, specifier) {
   const base = specifier.startsWith('/') ? WEB_DIR : path.dirname(fromFile);
@@ -38,6 +40,19 @@ function moduleBody(file) {
   return source.replace(IMPORT_PATTERN, '').replace(EXPORT_PATTERN, '');
 }
 
+// All modules share one scope once bundled, so a top-level name may be declared only once.
+function checkUniqueNames(modules) {
+  const owners = new Map();
+  for (const file of modules) {
+    for (const match of fs.readFileSync(file, 'utf8').matchAll(DECLARATION_PATTERN)) {
+      if (owners.has(match[1])) {
+        throw new Error(`"${match[1]}" is declared in both ${owners.get(match[1])} and ${file}`);
+      }
+      owners.set(match[1], file);
+    }
+  }
+}
+
 function siblingFiles(modules, extension) {
   return modules
     .map((file) => file.replace(/\.js$/, extension))
@@ -51,9 +66,11 @@ function escapeScript(code) {
 
 function bundleScript(entryFile) {
   const modules = collectModules(entryFile);
+  checkUniqueNames(modules);
   const templates = `<templates>${siblingFiles(modules, '.xml').join('\n')}</templates>`;
   const bodies = modules.map(moduleBody).join('\n');
   const app = `(() => {\nconst TEMPLATES = ${JSON.stringify(templates)};\n${bodies}\n})();`;
+  new vm.Script(app, { filename: entryFile });
   return {
     script: escapeScript(`${fs.readFileSync(OWL_FILE, 'utf8')}\n${app}`),
     css: siblingFiles(modules, '.css').join('\n'),

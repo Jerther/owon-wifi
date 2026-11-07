@@ -1,0 +1,26 @@
+<templates>
+  <t t-name="owon.ScopeApp">
+    <main class="scope-app">
+      <div class="scope-topbar">
+        <StatusPill/>
+        <span class="muted numeric"><t t-esc="sampleInfo"/></span>
+      </div>
+      <ScopeScreen/>
+      <ScaleStrip/>
+      <InfoLine/>
+      <ActionBar/>
+      <MeasureTable/>
+      <div class="panel-grid">
+        <ChannelPanel index="0"/>
+        <ChannelPanel index="1"/>
+        <HorizontalPanel/>
+        <TriggerPanel/>
+        <ViewPanel/>
+      </div>
+      <footer class="scope-footer muted numeric">
+        <span><t t-esc="status.statsText"/></span>
+        <a href="/settings">Settings</a>
+      </footer>
+    </main>
+  </t>
+</templates>

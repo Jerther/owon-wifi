@@ -1,0 +1,14 @@
+<templates>
+  <t t-name="owon.ViewPanel">
+    <section class="control-panel panel">
+      <h2>View</h2>
+      <SegmentedChoice path="'ui.view'" options="constructor.VIEWS"/>
+      <div class="control-pair">
+        <ToggleButton path="'ui.cursorsV'" label="'V cursors'"/>
+        <ToggleButton path="'ui.cursorsT'" label="'T cursors'"/>
+      </div>
+      <SegmentedChoice path="'ui.cursorChannel'" options="constructor.CURSOR_CHANNELS" disabled="cursorChannelDisabled"/>
+      <button type="button" t-on-click="exportCsv">Export CSV</button>
+    </section>
+  </t>
+</templates>

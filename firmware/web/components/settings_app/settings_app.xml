@@ -1,0 +1,10 @@
+<t t-name="owon.SettingsApp">
+  <main class="settings">
+    <a class="settings-back" href="/">Back to the scope</a>
+    <StatusSection/>
+    <AppearanceSection/>
+    <WifiSection/>
+    <FirmwareSection/>
+    <LogSection/>
+  </main>
+</t>

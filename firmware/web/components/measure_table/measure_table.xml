@@ -1,0 +1,18 @@
+<templates>
+  <t t-name="owon.MeasureTable">
+    <table class="measure-table panel numeric">
+      <thead>
+        <tr>
+          <th/>
+          <th t-foreach="constructor.CHANNELS" t-as="channel" t-key="channel" t-att-class="'c' + channel">CH<t t-esc="channel + 1"/></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr t-foreach="constructor.ROWS" t-as="row" t-key="row.key">
+          <th class="muted"><t t-esc="row.label"/></th>
+          <td t-foreach="constructor.CHANNELS" t-as="channel" t-key="channel" t-att-class="'c' + channel"><t t-esc="valueText(channel, row)"/></td>
+        </tr>
+      </tbody>
+    </table>
+  </t>
+</templates>

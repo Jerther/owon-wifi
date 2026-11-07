@@ -1,0 +1,2 @@
+.slider-field { display: grid; grid-template-columns: 4.5em minmax(0, 1fr) 5.5em; gap: 8px; align-items: center; }
+.slider-field > output { text-align: right; }

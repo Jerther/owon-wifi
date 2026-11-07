@@ -1,0 +1,12 @@
+<t t-name="owon.StatusSection">
+  <section class="panel settings-section">
+    <h2>Status</h2>
+    <div t-if="state.unreachable">Device unreachable</div>
+    <div t-elif="!state.info" class="muted">Loading...</div>
+    <dl t-else="" class="status-list">
+      <dt class="muted">Firmware</dt><dd t-esc="firmwareText"/>
+      <dt class="muted">Own network</dt><dd t-esc="state.info.ap_ssid"/>
+      <dt class="muted">Joined network</dt><dd t-esc="joinedText"/>
+    </dl>
+  </section>
+</t>

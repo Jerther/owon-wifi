@@ -1,0 +1,2 @@
+.stepper-select { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 4px; }
+.stepper-select > button { padding: 0; font-size: 20px; }

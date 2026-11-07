@@ -1,0 +1,8 @@
+.settings { max-width: 720px; margin: 0 auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.settings-back { display: inline-flex; align-items: center; min-height: 44px; }
+.settings-section { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.settings-section input[type="text"], .settings-section input[type="password"], .settings-section input[type="file"] {
+  width: 100%; min-height: 44px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--control);
+}
+.settings-section input[type="file"] { padding: 8px 10px; }
+.settings-result { min-height: 1.2em; }

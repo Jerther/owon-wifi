@@ -1,0 +1,3 @@
+<t t-name="owon.NetworkItem">
+  <button class="network" t-on-click="choose" t-esc="label"/>
+</t>

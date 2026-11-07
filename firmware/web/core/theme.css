@@ -1,0 +1,74 @@
+/* Graphite (dark) is the default; Bench paper (light) applies with data-theme="light". */
+:root {
+  color-scheme: dark;
+  --bg: #111214;
+  --panel: #18191c;
+  --control: #1f2024;
+  --line: #2a2c30;
+  --line-strong: #383b40;
+  --text: #e6e7ea;
+  --muted: #8a8d93;
+  --accent: #2b8cff;
+  --on-accent: #ffffff;
+  --link: #6aaeff;
+  --ch0: #ffd400;
+  --ch1: #00d4ff;
+  --ok-bg: #1f3b2c;
+  --ok-fg: #5fd38d;
+  --warn-bg: #3a3018;
+  --warn-fg: #f0b84a;
+  --bad-bg: #3d1f1d;
+  --bad-fg: #ff7b6e;
+  --neutral-bg: #26282c;
+  --neutral-fg: #c4c6cb;
+  --shadow: 0 6px 24px #0008;
+  /* The scope screen stays dark in both themes. */
+  --screen-bg: #000000;
+  --screen-line: #2a2c30;
+  --screen-text: #e6e7ea;
+  --screen-overlay: #000000cc;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f3ef;
+  --panel: #ffffff;
+  --control: #ffffff;
+  --line: #e4e2da;
+  --line-strong: #d5d3cb;
+  --text: #26251f;
+  --muted: #76746b;
+  --accent: #1f1e1a;
+  --on-accent: #ffffff;
+  --link: #1f5fa8;
+  --ch0: #a88a00;
+  --ch1: #1386a8;
+  --ok-bg: #e1f0e5;
+  --ok-fg: #1e7a45;
+  --warn-bg: #f7ecd0;
+  --warn-fg: #8a6100;
+  --bad-bg: #f8e0dc;
+  --bad-fg: #b23b2e;
+  --neutral-bg: #ebe9e2;
+  --neutral-fg: #4a4942;
+  --shadow: 0 6px 24px #26251f26;
+}
+
+* { box-sizing: border-box; }
+html, body { overscroll-behavior: none; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px system-ui, sans-serif; }
+a { color: var(--link); }
+h2 { margin: 0; font-size: 15px; font-weight: 600; }
+button, select, input { font: inherit; color: inherit; }
+button, select {
+  min-height: 44px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--control);
+}
+button { cursor: pointer; touch-action: manipulation; }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button:disabled, select:disabled, input:disabled { opacity: 0.4; cursor: default; }
+input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: var(--accent); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.muted { color: var(--muted); }
+.numeric { font-variant-numeric: tabular-nums; }
+.c0 { color: var(--ch0); }
+.c1 { color: var(--ch1); }

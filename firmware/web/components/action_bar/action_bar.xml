@@ -1,0 +1,10 @@
+<templates>
+  <t t-name="owon.ActionBar">
+    <div class="action-bar">
+      <button type="button" t-att-class="'tone-' + runTone" t-on-click="toggleRun"><t t-esc="runLabel"/></button>
+      <button type="button" t-att-class="singleTone and 'tone-' + singleTone" t-on-click="single">Single</button>
+      <button type="button" t-att-disabled="forceDisabled" t-on-click="forceTrigger">Force trig</button>
+      <button type="button" t-on-click="autoset">Autoset</button>
+    </div>
+  </t>
+</templates>

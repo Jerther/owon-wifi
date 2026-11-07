@@ -1,0 +1,6 @@
+<t t-name="owon.LogSection">
+  <section class="panel settings-section">
+    <h2>Logs</h2>
+    <pre class="log-box" t-ref="box" t-esc="state.text"/>
+  </section>
+</t>

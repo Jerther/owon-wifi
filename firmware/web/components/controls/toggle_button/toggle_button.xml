@@ -1,0 +1,6 @@
+<templates>
+  <t t-name="owon.ToggleButton">
+    <button class="toggle-button" type="button" t-att-aria-pressed="pressed" t-att-disabled="props.disabled"
+            t-on-click="toggle"><t t-esc="props.label"/></button>
+  </t>
+</templates>

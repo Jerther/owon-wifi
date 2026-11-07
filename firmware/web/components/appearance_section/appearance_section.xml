@@ -1,0 +1,12 @@
+<t t-name="owon.AppearanceSection">
+  <section class="panel settings-section">
+    <h2>Appearance</h2>
+    <div class="muted">Theme</div>
+    <div class="segmented" role="group" aria-label="Theme">
+      <t t-foreach="choices" t-as="choice" t-key="choice">
+        <button t-att-aria-pressed="isChosen(choice) ? 'true' : 'false'" t-att-data-choice="choice"
+                t-on-click="choose" t-esc="choice"/>
+      </t>
+    </div>
+  </section>
+</t>

@@ -1,0 +1,10 @@
+<templates>
+  <t t-name="owon.SliderField">
+    <label class="slider-field">
+      <span class="muted"><t t-esc="props.label"/></span>
+      <input type="range" t-att-min="props.min" t-att-max="props.max" t-att-step="props.step"
+             t-att-value="value" t-att-disabled="props.disabled" t-on-input="change"/>
+      <output class="numeric"><t t-esc="props.text"/></output>
+    </label>
+  </t>
+</templates>

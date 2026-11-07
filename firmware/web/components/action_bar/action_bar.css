@@ -1,0 +1,5 @@
+.action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 4px 0 10px; }
+.action-bar > button { font-weight: 600; padding: 0 4px; }
+.action-bar > .tone-ok { background: var(--ok-bg); border-color: var(--ok-fg); color: var(--ok-fg); }
+.action-bar > .tone-bad { background: var(--bad-bg); border-color: var(--bad-fg); color: var(--bad-fg); }
+.action-bar > .tone-warn { background: var(--warn-bg); border-color: var(--warn-fg); color: var(--warn-fg); }

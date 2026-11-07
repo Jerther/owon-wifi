@@ -1,0 +1,11 @@
+<templates>
+  <t t-name="owon.SegmentedChoice">
+    <div class="segmented-choice">
+      <button t-foreach="props.options" t-as="option" t-key="option_index" type="button"
+              t-att-data-index="option_index" t-att-aria-pressed="isPressed(option)"
+              t-att-title="option.title" t-att-disabled="props.disabled" t-on-click="choose">
+        <t t-esc="option.label"/><sub t-if="option.sub"><t t-esc="option.sub"/></sub>
+      </button>
+    </div>
+  </t>
+</templates>

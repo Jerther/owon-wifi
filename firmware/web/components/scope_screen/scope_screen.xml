@@ -1,0 +1,15 @@
+<t t-name="owon.ScopeScreen">
+  <div class="scope-screen" t-ref="screen">
+    <canvas class="scope-screen-canvas" t-ref="grid"/>
+    <canvas class="scope-screen-canvas scope-screen-trace" t-att-class="{ 'scope-screen-trace-locked': cursorsActive }"
+      t-ref="trace" t-on-pointerdown="onTracePointerDown" t-on-pointermove="onTracePointerMove"
+      t-on-pointerup="onTracePointerUp" t-on-pointercancel="onTracePointerUp"/>
+    <t t-foreach="handles" t-as="handle" t-key="handle.key">
+      <div class="scope-screen-handle" t-att-class="{ 'scope-screen-handle-active': handle.active }" t-att-hidden="handle.hidden"
+        t-att-style="handle.style" t-att-data-kind="handle.kind" t-att-data-index="handle.index"
+        t-on-pointerdown="onHandleDown" t-on-pointermove="onHandleMove"
+        t-on-pointerup="onHandleUp" t-on-pointercancel="onHandleUp"/>
+    </t>
+    <div t-if="readout" class="scope-screen-readout" t-att-data-kind="readout.kind" t-att-style="readout.style" t-esc="readout.text"/>
+  </div>
+</t>

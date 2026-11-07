@@ -3,7 +3,7 @@
 Sources: `OWON-VDS1022/doc/manual_en.pdf` (V1.3), `README.md`, `changes.txt` and the class list of `lib/owon-vds-tiny-1.1.5-cf19.jar`. Last checked 2026-11-07.
 "Fork" means an addition made by florentbr's fork, not by OWON.
 
-**Already done**: run/stop, single (also in roll mode), force, autoset; channel on/off, volts/div, position, DC/AC coupling, GND (software only), probe ×1/×10/×100; time base from 5 ns/div up (sin(x)/x below 5 µs/div), waveform quality label, roll mode, peak detect; edge trigger (auto/normal, CH1/CH2/EXT, rising/falling, level, position, 50 %), drag arrows for level, trigger position and channel position; measurements Frequency, Vpp, Vmax, Vmin, Vavg, Vrms; V and T cursors on CH1 or CH2; Hann FFT in dBV with peak readout; XY; CSV export; settings kept in the browser.
+**Already done**: run/stop, single (also in roll mode), force, autoset; channel on/off, volts/div, position, DC/AC coupling, GND (software only), probe ×1/×10/×100; time base from 5 ns/div up (sin(x)/x below 5 µs/div), waveform quality label, roll mode, peak detect; edge trigger (auto/normal, CH1/CH2/EXT, rising/falling, level, position, 50 %), drag arrows for level, trigger position and channel position; measurements Frequency, Vpp, Vmax, Vmin, Vavg, Vrms; V and T cursors on CH1 or CH2; Hann FFT in dBV with peak readout; XY; CSV export; settings kept in the browser; grid brightness and trace width; wheel and pinch on the screen step the time base.
 
 ## Left to do
 
@@ -34,7 +34,6 @@ Sources: `OWON-VDS1022/doc/manual_en.pdf` (V1.3), `README.md`, `changes.txt` and
 | FFT | Cursors | Frequency and amplitude | Missing |
 | Display | Persistence | 0.5, 1, 2, 5 s, infinite, clear | Missing |
 | Display | Dots instead of lines | | Missing |
-| Display | Grid brightness | | Missing |
 | Display | Several views at once | Time + FFT + XY | Partial: one at a time |
 | Pass/Fail | Mask test | Mask from the live trace with horizontal and vertical tolerance; pass/fail counters, stop on fail, sound, output | Missing |
 | Decoding | Protocol decoding: UART, I2C, SPI… | Not in OWON's app; wanted anyway. Two channels only, so I2C (SDA + SCL) and UART fit; SPI needs 3 or 4 lines | Missing |

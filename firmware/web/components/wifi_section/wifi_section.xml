@@ -1,0 +1,19 @@
+<t t-name="owon.WifiSection">
+  <section class="panel settings-section">
+    <h2>Wi-Fi</h2>
+    <button t-on-click="scan">Scan again</button>
+    <div class="networks">
+      <NetworkItem t-foreach="state.networks" t-as="network" t-key="network.ssid"
+                   network="network" onChoose.bind="chooseNetwork"/>
+    </div>
+    <div t-if="state.scanMessage" class="muted" t-esc="state.scanMessage"/>
+    <input type="text" placeholder="Network name" maxlength="32" autocapitalize="off" autocomplete="off"
+           t-model="state.ssid"/>
+    <input t-ref="password" t-att-type="passwordType" placeholder="Password" maxlength="63" autocomplete="off"
+           t-model="state.password"/>
+    <label class="show-password"><input type="checkbox" t-model="state.showPassword"/> Show password</label>
+    <button t-on-click="save">Save</button>
+    <button t-on-click="forget">Forget</button>
+    <div class="settings-result" t-esc="state.result"/>
+  </section>
+</t>

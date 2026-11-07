@@ -1,0 +1,18 @@
+<templates>
+  <t t-name="owon.HorizontalPanel">
+    <section class="control-panel panel">
+      <h2>Horizontal</h2>
+      <div class="control-line">
+        <span class="muted">Time</span>
+        <StepperSelect path="'settings.rateIndex'" options="times" label="'Time per division'" minusDelta="1"
+                       minusLabel="'Less time per division'" plusLabel="'More time per division'"/>
+      </div>
+      <SliderField label="'Position'" path="'settings.trigger.position'" min="0" max="1" step="0.01"
+                   text="positionText" disabled="positionDisabled"/>
+      <div class="control-line">
+        <span class="muted">Acquire</span>
+        <ToggleButton path="'settings.peak'" label="'Peak detect'"/>
+      </div>
+    </section>
+  </t>
+</templates>

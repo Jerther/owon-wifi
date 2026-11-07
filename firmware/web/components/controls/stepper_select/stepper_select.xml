@@ -1,0 +1,12 @@
+<templates>
+  <t t-name="owon.StepperSelect">
+    <div class="stepper-select">
+      <button type="button" t-att-aria-label="props.minusLabel" t-on-click="stepMinus">&#8722;</button>
+      <select t-att-aria-label="props.label" t-on-change="select">
+        <option t-foreach="props.options" t-as="option" t-key="option.value"
+                t-att-value="option.value" t-att-selected="option.value === value"><t t-esc="option.label"/></option>
+      </select>
+      <button type="button" t-att-aria-label="props.plusLabel" t-on-click="stepPlus">+</button>
+    </div>
+  </t>
+</templates>

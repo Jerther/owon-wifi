@@ -1,0 +1,22 @@
+<templates>
+  <t t-name="owon.TriggerPanel">
+    <section class="control-panel panel">
+      <h2>Trigger (edge)</h2>
+      <div class="control-line">
+        <span class="muted">Mode</span>
+        <SegmentedChoice path="'settings.trigger.sweep'" options="constructor.SWEEPS"/>
+      </div>
+      <div class="control-line">
+        <span class="muted">Source</span>
+        <SegmentedChoice path="'settings.trigger.source'" options="constructor.SOURCES"/>
+      </div>
+      <div class="control-line">
+        <span class="muted">Slope</span>
+        <SegmentedChoice path="'settings.trigger.fall'" options="constructor.SLOPES"/>
+      </div>
+      <SliderField label="'Level'" path="'settings.trigger.levelDiv'" min="-5" max="5" step="0.05"
+                   text="levelText" disabled="levelDisabled"/>
+      <button type="button" t-att-disabled="levelDisabled" t-on-click="setLevelToMiddle">Set level to 50 %</button>
+    </section>
+  </t>
+</templates>

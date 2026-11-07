@@ -1,0 +1,15 @@
+<templates>
+  <t t-name="owon.ScaleStrip">
+    <div class="scale-strip numeric">
+      <t t-foreach="constructor.CHANNELS" t-as="index" t-key="index">
+        <span t-if="channelOn(index)" t-att-class="'c' + index"><t t-esc="channelText(index)"/></span>
+      </t>
+      <span><t t-esc="timeText"/></span>
+      <span class="scale-end">
+        <span t-if="status.fidelity" class="fidelity" t-att-data-level="status.fidelity.level"
+              t-att-title="fidelityTitle"><t t-esc="fidelityText"/></span>
+        <DisplayPopover/>
+      </span>
+    </div>
+  </t>
+</templates>

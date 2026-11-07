@@ -1,0 +1,8 @@
+<t t-name="owon.FirmwareSection">
+  <section class="panel settings-section">
+    <h2>Firmware</h2>
+    <input t-ref="file" type="file" accept=".bin"/>
+    <button t-on-click="upload">Upload</button>
+    <div class="settings-result" t-esc="state.result"/>
+  </section>
+</t>

@@ -1,0 +1,9 @@
+body { padding: 8px 8px 24px; }
+.scope-app { max-width: 1100px; margin: 0 auto; }
+.scope-topbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 4px 2px 8px; }
+.scope-footer { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; margin-top: 14px; }
+.panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 10px; }
+.control-panel { display: grid; gap: 10px; align-content: start; padding: 12px; }
+.control-head { display: flex; align-items: center; justify-content: space-between; }
+.control-line { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 8px; align-items: center; }
+.control-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }

@@ -1,0 +1,5 @@
+<templates>
+  <t t-name="owon.InfoLine">
+    <div class="info-line muted numeric"><t t-esc="text"/></div>
+  </t>
+</templates>
