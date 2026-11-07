@@ -431,6 +431,7 @@ const STATE_DISPLAY = {
   triggered: { text: 'Running (triggered)', tone: 'running' },
   awaiting: { text: 'Waiting for trigger', tone: 'waiting' },
   armed: { text: 'Single: waiting for trigger', tone: 'waiting' },
+  filling: { text: 'Single: capturing', tone: 'running' },
   stopped: { text: 'Stopped', tone: 'stopped' },
   captured: { text: 'Single captured', tone: 'stopped' },
 };
@@ -458,7 +459,8 @@ function acquisitionState() {
   } else if (app.acquire === RUN) {
     name = runningState();
   } else if (singleArmed()) {
-    name = 'armed';
+    // Roll mode shows the screen filling up rather than a wait.
+    name = samplingFor(app.store.settings.rateIndex).roll ? 'filling' : 'armed';
   }
   return name;
 }
