@@ -1,0 +1,6 @@
+build/
+sdkconfig
+sdkconfig.old
+main/wifi_secrets.h
+wifi_qr.png
+managed_components/
