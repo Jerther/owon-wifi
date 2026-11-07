@@ -124,7 +124,7 @@ This repository holds `PROJECT.md` and `firmware/`. The firmware embeds the FPGA
    - The password of its own network is in `firmware/main/wifi_secrets.h` (not in git; **the firmware won't build without it**). `firmware/wifi_qr.png` is a joining QR code for that password, to regenerate if it changes.
    - Update over Wi-Fi: `curl -X POST --data-binary @build/owon_sidekick.bin http://<ip>/update`. Takes about 7 s; the stream keeps running at about 17 refreshes/s during the upload. Tested, including rollback: a deliberately crashing image rolled back to the previous version on its own. A new image is confirmed after running 30 s.
    - Captive portal: the page pops up by itself when a phone joins the board's network (confirmed on the user's phone).
-   - **Known limit**: firmware upload and Wi-Fi settings have no login, so anyone on the home network or on the board's network can use them.
+   - Firmware upload and Wi-Fi settings have no login, by choice (2026-11-07): they are reachable only from the home network or the board's WPA2 network, and both count as trusted.
    - The partition table changed for OTA: a board still on an older table needs one serial flash (`esptool write_flash @flash_args` from `build/`).
 4. Web app — first version in [firmware/main/](firmware/main/) (`index.html`, `app.js`, `scope_logic.js`), firmware 0.5.1 on board 1, reachable at `http://owon-scope.local/`. Since 0.5.0, the top bit of the frame sequence number marks a single capture. Logic tests: `node --test firmware/test/*.mjs` (95 pass). Runs live on the real scope at 28 refreshes/s. The user checked a known signal on CH1 with Autoset on 2026-11-06: trace and readings looked right.
    - Single is a one-shot button that keeps the selected sweep (Auto or Normal; Once is no longer a sweep choice, and an old saved Once becomes Auto); Run resumes by the sweep. Arrow handles drag trigger level (right), trigger position (top) and channel position (left), rather than whole lines, to avoid accidental grabs on a phone.
@@ -132,14 +132,13 @@ This repository holds `PROJECT.md` and `firmware/`. The firmware embeds the FPGA
    - AC and DC confirmed right by the user. GND: the hardware has no ground relay (mode 2 acts like AC, and the vendor app also forces ground in software), so the page draws a flat trace at the ground marker; the input stays connected.
    - **Checked on board 1 with the 5 V / 1 kHz calibration signal (2026-11-07)**: voltage, frequency (also on the non-source channel), probe scaling, single (also in roll mode, which fills the screen before stopping), Force, Normal-mode wait, trigger level and position, drag arrows with a mouse, roll mode, stopped-mode keepalive.
    - Protocol between browser and board: see `firmware/main/control.c` and `stream.c`. The board refuses register writes that could overwrite the scope's flash or desynchronize the protocol.
-   - Not done: pass/fail, protocol decoding, math channels, recording, pulse/slope/video trigger, login on upload and settings.
+   - Not done: see [FEATURES.md](FEATURES.md).
 
 ## What's left
 
-2. Check on a real phone: drag feel with a finger, and performance.
-3. Fast timebases: the page stops at 5 us/div (100 MS/s, 5000 samples) while the scope is rated to 5 ns/div; a zoom on the capture could reach them.
-4. Remaining features from the Java app: pass/fail, protocol decoding, math channels, recording, pulse/slope/video trigger.
-5. Login on firmware upload and Wi-Fi settings.
+2. Check on a real phone, once the UI changes are done (the user does it in one go): drag feel with a finger, and performance.
+3. Fast timebases: the page stops at 5 us/div (100 MS/s, 5000 samples) while the scope is rated to 5 ns/div. OWON's app gets there by sin(x)/x interpolation (`interpolate` package in the jar, "Interpolation" in the manual's spec table); valid since the bandwidth (25 MHz) is under Nyquist (50 MHz). Plan, page only: keep capturing at 100 MS/s, show a window around the trigger, interpolate, and find the trigger crossing between samples to remove up to 10 ns of jitter. Steps: 2, 1 us; 500, 200, 100, 50, 20, 10, 5 ns/div.
+4. Remaining features from the Java app: list in [FEATURES.md](FEATURES.md).
 6. Hardware: pick and cut the box, measure the voltage at the scope with the brick, check and prepare board 2. Later: battery, INA219.
 
 Before uploading any firmware: confirm which physical board to use and check its USB serial number on the port (board 1: COM port serial `<USB serial>`, MAC `<MAC>`).
