@@ -651,14 +651,94 @@ test('test_given_single_when_runModeFor_then_single_whatever_the_sweep', () => {
   assert.deepEqual(modes, [3, 3, 3]);
 });
 
-test('test_given_no_single_when_isOneShot_then_only_once_sweep', () => {
-  const results = [0, 1, 2].map((sweep) => logic.isOneShot(settingsWith({ sweep }), false));
+test('test_given_roll_and_normal_sweep_when_runModeFor_then_free_running', () => {
+  const settings = settingsWith({ sweep: logic.SWEEP_NORMAL });
+  settings.rateIndex = 0;
 
-  assert.deepEqual(results, [false, false, true]);
+  assert.equal(logic.runModeFor(settings), logic.MODE_FREE);
 });
 
-test('test_given_single_when_isOneShot_then_true_for_any_sweep', () => {
-  assert.equal(logic.isOneShot(settingsWith({ sweep: logic.SWEEP_NORMAL }), true), true);
+test('test_given_roll_and_single_when_runModeFor_then_single', () => {
+  const settings = settingsWith({ sweep: logic.SWEEP_NORMAL });
+  settings.rateIndex = 0;
+
+  assert.equal(logic.runModeFor(settings, true), logic.MODE_SINGLE);
+});
+
+function flaggedMessage(header) {
+  const message = new ArrayBuffer(4);
+  new DataView(message).setUint32(0, header, true);
+  return message;
+}
+
+test('test_given_flagged_header_when_isSingleCapture_then_true', () => {
+  assert.equal(logic.isSingleCapture(flaggedMessage(0x80000029)), true);
+});
+
+test('test_given_plain_header_when_isSingleCapture_then_false', () => {
+  assert.equal(logic.isSingleCapture(flaggedMessage(0x29)), false);
+});
+
+test('test_given_flagged_header_when_readSequence_then_flag_removed', () => {
+  assert.equal(logic.readSequence(flaggedMessage(0x80000029)), 41);
+});
+
+test('test_given_unchanged_settings_when_displayMapping_then_identity', () => {
+  const settings = settingsWith();
+
+  const mapping = logic.displayMapping(logic.captureSetup(settings), settings, 0);
+
+  assert.deepEqual(mapping, { yGain: 1, yShift: 0, xGain: 1, xShift: 0 });
+});
+
+test('test_given_settings_changed_after_capture_when_captureSetup_then_capture_unchanged', () => {
+  const settings = settingsWith();
+  const capture = logic.captureSetup(settings);
+
+  settings.channels[0].rangeIndex = 6;
+
+  assert.equal(capture.channels[0].rangeIndex, 5);
+});
+
+test('test_given_range_changed_when_displayMapping_then_same_volts_at_new_scale', () => {
+  const settings = settingsWith();
+  const capture = logic.captureSetup(settings);
+  const volts = logic.sampleToVolts(50, capture.channels[0]);
+  settings.channels[0].rangeIndex = 6;
+  settings.channels[0].offset = -0.2;
+
+  const { yGain, yShift } = logic.displayMapping(capture, settings, 0);
+
+  const fractionAboveCentre = (50 / logic.ADC_RANGE) * yGain + yShift;
+  assert.ok(Math.abs(fractionAboveCentre - logic.voltsToScreen(volts, settings.channels[0]) + 0.5) < 1e-9);
+});
+
+test('test_given_slower_timebase_when_displayMapping_then_trigger_point_stays_on_marker', () => {
+  const settings = settingsWith({ position: 0.25 });
+  const capture = logic.captureSetup(settings);
+  settings.rateIndex -= 1;
+  settings.trigger.position = 0.75;
+
+  const { xGain, xShift } = logic.displayMapping(capture, settings, 0);
+
+  assert.ok(xGain < 1);
+  assert.ok(Math.abs(0.25 * xGain + xShift - 0.75) < 1e-9);
+});
+
+test('test_given_range_change_when_levelDivForRange_then_voltage_kept', () => {
+  assert.equal(logic.levelDivForRange(2, 5, 6), 0.8);
+});
+
+test('test_given_level_off_screen_when_levelDivForRange_then_clipped', () => {
+  assert.equal(logic.levelDivForRange(4, 6, 5), 5);
+});
+
+test('test_given_samples_when_levelDivAtMidpoint_then_level_at_their_middle', () => {
+  const channel = { on: true, probe: 1, coupling: logic.DC, rangeIndex: 5, offset: 0.1 };
+
+  const level = logic.levelDivAtMidpoint(0, 100, channel, channel);
+
+  assert.equal(level, 1);
 });
 
 test('test_given_normal_sweep_and_single_when_buildTriggerWrites_then_once_bits_and_settings_untouched', () => {

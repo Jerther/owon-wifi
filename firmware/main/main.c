@@ -118,9 +118,10 @@ static esp_err_t fetch_once(session_t *session) {
     size_t count;
     const esp_err_t err = vds1022_fetch_frames(session->acquisition.channel_mask, s_frames, &count);
     if (err == ESP_OK) {
-        stream_publish(s_frames, count * VDS1022_FRAME_SIZE);
+        const bool single_capture = session->acquisition.mode == ACQUISITION_SINGLE;
+        stream_publish(s_frames, count * VDS1022_FRAME_SIZE, single_capture);
         session->fetched++;
-        if (session->acquisition.mode == ACQUISITION_SINGLE) {
+        if (single_capture) {
             session->acquisition.mode = ACQUISITION_STOPPED;
         }
     }

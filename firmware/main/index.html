@@ -45,9 +45,10 @@
   #info { min-height: 1.3em; padding: 0 2px 6px; }
 
   .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 4px 0 10px; }
-  .row button { font-weight: 600; }
+  .row button { font-weight: 600; padding: 0 4px; }
   #run[data-running="true"] { background: var(--bad); border-color: var(--bad); color: #fff; }
   #run[data-running="false"] { background: var(--ok); border-color: var(--ok); color: #04210f; }
+  #single[data-armed="true"] { background: var(--warn); border-color: var(--warn); color: #2a1a00; }
 
   #measures { display: grid; grid-template-columns: auto 1fr 1fr; gap: 2px 14px; padding: 8px 10px; margin-bottom: 10px; background: var(--panel); border-radius: 8px; font-variant-numeric: tabular-nums; }
   #measures .label { color: var(--muted); }
@@ -60,7 +61,11 @@
   .group.ch1 h2 { color: var(--ch1); }
   .seg { display: flex; gap: 4px; }
   .seg > button { flex: 1; padding: 0 4px; }
-  .line { display: grid; grid-template-columns: 4.5em 1fr; gap: 8px; align-items: center; }
+  .head { display: flex; align-items: center; justify-content: space-between; }
+  .head button { min-width: 4.5em; }
+  .stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 4px; }
+  .stepper button { padding: 0; font-size: 20px; }
+  .line { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 8px; align-items: center; }
   .line > span { color: var(--muted); }
   .slider { display: grid; grid-template-columns: 4.5em 1fr 5.5em; gap: 8px; align-items: center; }
   .slider > span { color: var(--muted); }
@@ -92,71 +97,76 @@
 
   <div class="row">
     <button id="run" data-running="true">Stop</button>
-    <button id="single">Single</button>
+    <button id="single" data-armed="false">Single</button>
+    <button id="force">Force trig</button>
     <button id="autoset">Autoset</button>
-    <button id="force">Force</button>
   </div>
 
   <div id="measures"></div>
 
   <div class="groups">
     <section class="group ch0">
-      <h2>CH1</h2>
-      <div class="seg">
-        <button data-key="settings.channels.0.on" data-toggle>On</button>
-        <button data-key="settings.channels.0.probe" data-value="1">×1</button>
-        <button data-key="settings.channels.0.probe" data-value="10">×10</button>
-        <button data-key="settings.channels.0.probe" data-value="100">×100</button>
+      <div class="head">
+        <h2>CH1</h2>
+        <button id="on-0" data-key="settings.channels.0.on" data-toggle>On</button>
       </div>
-      <div class="seg">
+      <div class="line"><span>Range</span><div class="stepper"><button data-step="settings.channels.0.rangeIndex" data-delta="-1" aria-label="Smaller volts per division">&minus;</button><select aria-label="CH1 volts per division" data-key="settings.channels.0.rangeIndex" data-ranges="0"></select><button data-step="settings.channels.0.rangeIndex" data-delta="1" aria-label="Larger volts per division">+</button></div></div>
+      <label class="slider"><span>Position</span><input type="range" min="-0.45" max="0.45" step="0.01" data-key="settings.channels.0.offset"><output data-out="settings.channels.0.offset"></output></label>
+      <div class="line"><span>Coupling</span><div class="seg">
         <button data-key="settings.channels.0.coupling" data-value="1">DC</button>
         <button data-key="settings.channels.0.coupling" data-value="0">AC</button>
         <button data-key="settings.channels.0.coupling" data-value="2" title="Display only: the input stays connected">GND<sub>soft</sub></button>
-      </div>
-      <label class="line"><span>Range</span><select data-key="settings.channels.0.rangeIndex" data-ranges="0"></select></label>
-      <label class="slider"><span>Position</span><input type="range" min="-0.45" max="0.45" step="0.01" data-key="settings.channels.0.offset"><output data-out="settings.channels.0.offset"></output></label>
+      </div></div>
+      <div class="line"><span>Probe</span><div class="seg">
+        <button data-key="settings.channels.0.probe" data-value="1">×1</button>
+        <button data-key="settings.channels.0.probe" data-value="10">×10</button>
+        <button data-key="settings.channels.0.probe" data-value="100">×100</button>
+      </div></div>
     </section>
 
     <section class="group ch1">
-      <h2>CH2</h2>
-      <div class="seg">
-        <button data-key="settings.channels.1.on" data-toggle>On</button>
-        <button data-key="settings.channels.1.probe" data-value="1">×1</button>
-        <button data-key="settings.channels.1.probe" data-value="10">×10</button>
-        <button data-key="settings.channels.1.probe" data-value="100">×100</button>
+      <div class="head">
+        <h2>CH2</h2>
+        <button id="on-1" data-key="settings.channels.1.on" data-toggle>On</button>
       </div>
-      <div class="seg">
+      <div class="line"><span>Range</span><div class="stepper"><button data-step="settings.channels.1.rangeIndex" data-delta="-1" aria-label="Smaller volts per division">&minus;</button><select aria-label="CH2 volts per division" data-key="settings.channels.1.rangeIndex" data-ranges="1"></select><button data-step="settings.channels.1.rangeIndex" data-delta="1" aria-label="Larger volts per division">+</button></div></div>
+      <label class="slider"><span>Position</span><input type="range" min="-0.45" max="0.45" step="0.01" data-key="settings.channels.1.offset"><output data-out="settings.channels.1.offset"></output></label>
+      <div class="line"><span>Coupling</span><div class="seg">
         <button data-key="settings.channels.1.coupling" data-value="1">DC</button>
         <button data-key="settings.channels.1.coupling" data-value="0">AC</button>
         <button data-key="settings.channels.1.coupling" data-value="2" title="Display only: the input stays connected">GND<sub>soft</sub></button>
-      </div>
-      <label class="line"><span>Range</span><select data-key="settings.channels.1.rangeIndex" data-ranges="1"></select></label>
-      <label class="slider"><span>Position</span><input type="range" min="-0.45" max="0.45" step="0.01" data-key="settings.channels.1.offset"><output data-out="settings.channels.1.offset"></output></label>
+      </div></div>
+      <div class="line"><span>Probe</span><div class="seg">
+        <button data-key="settings.channels.1.probe" data-value="1">×1</button>
+        <button data-key="settings.channels.1.probe" data-value="10">×10</button>
+        <button data-key="settings.channels.1.probe" data-value="100">×100</button>
+      </div></div>
     </section>
 
     <section class="group">
-      <h2>Timebase</h2>
-      <label class="line"><span>Time</span><select id="time-range" data-key="settings.rateIndex"></select></label>
-      <div class="seg"><button data-key="settings.peak" data-toggle>Peak detect</button></div>
+      <h2>Horizontal</h2>
+      <div class="line"><span>Time</span><div class="stepper"><button data-step="settings.rateIndex" data-delta="1" aria-label="Less time per division">&minus;</button><select id="time-range" aria-label="Time per division" data-key="settings.rateIndex"></select><button data-step="settings.rateIndex" data-delta="-1" aria-label="More time per division">+</button></div></div>
+      <label class="slider"><span>Position</span><input id="position" type="range" min="0" max="1" step="0.01" data-key="settings.trigger.position"><output data-out="settings.trigger.position"></output></label>
+      <div class="line"><span>Acquire</span><div class="seg"><button data-key="settings.peak" data-toggle>Peak detect</button></div></div>
     </section>
 
     <section class="group">
       <h2>Trigger (edge)</h2>
-      <div class="seg">
+      <div class="line"><span>Mode</span><div class="seg">
+        <button data-key="settings.trigger.sweep" data-value="0">Auto</button>
+        <button data-key="settings.trigger.sweep" data-value="1">Normal</button>
+      </div></div>
+      <div class="line"><span>Source</span><div class="seg">
         <button data-key="settings.trigger.source" data-value="0">CH1</button>
         <button data-key="settings.trigger.source" data-value="1">CH2</button>
         <button data-key="settings.trigger.source" data-value="2">EXT</button>
-      </div>
-      <div class="seg">
+      </div></div>
+      <div class="line"><span>Slope</span><div class="seg">
         <button data-key="settings.trigger.fall" data-value="false">Rising</button>
         <button data-key="settings.trigger.fall" data-value="true">Falling</button>
-      </div>
-      <div class="seg">
-        <button data-key="settings.trigger.sweep" data-value="0">Auto</button>
-        <button data-key="settings.trigger.sweep" data-value="1">Normal</button>
-      </div>
+      </div></div>
       <label class="slider"><span>Level</span><input id="level" type="range" min="-5" max="5" step="0.05" data-key="settings.trigger.levelDiv"><output data-out="settings.trigger.levelDiv"></output></label>
-      <label class="slider"><span>Position</span><input type="range" min="0" max="1" step="0.01" data-key="settings.trigger.position"><output data-out="settings.trigger.position"></output></label>
+      <div class="seg"><button id="level-50">Set level to 50 %</button></div>
     </section>
 
     <section class="group">

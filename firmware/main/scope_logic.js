@@ -49,6 +49,7 @@ const FRAME_HEADER_SIZE = 111;
 const NON_ROLL_SKIP = 50;
 const ROLL_SKIP = 100;
 const SEQUENCE_SIZE = 4;
+const SINGLE_CAPTURE_FLAG = 0x80000000;
 const CMD_WRITE_REGISTERS = 0x01;
 const CMD_SET_MODE = 0x02;
 const FORCE_TRIGGER_VALUE = 3;
@@ -404,14 +405,11 @@ export function effectiveSweep(settings, single) {
   return single ? SWEEP_ONCE : settings.trigger.sweep;
 }
 
-// A capture that ends the run: an armed single, or the Once sweep selected by the user.
-export function isOneShot(settings, single) {
-  return effectiveSweep(settings, single) === SWEEP_ONCE;
-}
-
+// Roll mode shows the signal as it comes, so only a single waits for a trigger there.
 export function runModeFor(settings, single = false) {
   const modes = [MODE_FREE, MODE_TRIGGERED, MODE_SINGLE];
-  return modes[effectiveSweep(settings, single)];
+  const rolling = samplingFor(settings.rateIndex).roll && !single;
+  return rolling ? MODE_FREE : modes[effectiveSweep(settings, single)];
 }
 
 // ---------------------------------------------------------------- frames
@@ -421,7 +419,11 @@ export function createFrameSlot() {
 }
 
 export function readSequence(message) {
-  return new DataView(message).getUint32(0, true);
+  return (new DataView(message).getUint32(0, true) & ~SINGLE_CAPTURE_FLAG) >>> 0;
+}
+
+export function isSingleCapture(message) {
+  return (new DataView(message).getUint32(0, true) & SINGLE_CAPTURE_FLAG) !== 0;
 }
 
 export function frameCount(messageLength) {
@@ -487,6 +489,30 @@ export function sampleTimeSeconds(index, rate, position) {
   return (index - SAMPLES * position) / rate;
 }
 
+// The setup a frame was captured with: frames stay readable after the settings change.
+export function captureSetup(settings) {
+  return {
+    channels: settings.channels.map((channel) => ({ ...channel })),
+    rateIndex: settings.rateIndex,
+    trigger: { position: settings.trigger.position },
+  };
+}
+
+// How to draw captured samples with the current settings, like a bench scope does once stopped:
+// x fraction = index / SAMPLES * xGain + xShift; y fraction above centre = sample / ADC_RANGE * yGain + yShift.
+export function displayMapping(capture, settings, index) {
+  const captured = capture.channels[index];
+  const current = settings.channels[index];
+  const yGain = fullScaleVolts(captured) / fullScaleVolts(current);
+  const xGain = samplingFor(settings.rateIndex).rate / samplingFor(capture.rateIndex).rate;
+  return {
+    yGain,
+    yShift: current.offset - captured.offset * yGain,
+    xGain,
+    xShift: displayedTriggerPosition(settings) - displayedTriggerPosition(capture) * xGain,
+  };
+}
+
 export function sampleToVolts(sample, channel) {
   const { scale, shift } = sampleScale(channel);
   return sample * scale + shift;
@@ -518,6 +544,18 @@ export function levelDivAtScreen(yFraction, offset) {
 
 export function positionAtScreen(xFraction) {
   return snap(clip(xFraction, 0, 1), FRACTION_STEP);
+}
+
+// The trigger stays on the same voltage when the source channel's range changes.
+export function levelDivForRange(levelDiv, rangeIndex, newRangeIndex) {
+  const level = (levelDiv * VOLT_RANGES[rangeIndex]) / VOLT_RANGES[newRangeIndex];
+  return snap(clip(level, -LEVEL_LIMIT_DIV, LEVEL_LIMIT_DIV), LEVEL_STEP);
+}
+
+// The "set level to 50 %" key: halfway between the lowest and highest sample of the capture.
+export function levelDivAtMidpoint(low, high, captured, current) {
+  const level = sampleToVolts((low + high) / 2, captured) / voltsPerDivision(current);
+  return snap(clip(level, -LEVEL_LIMIT_DIV, LEVEL_LIMIT_DIV), LEVEL_STEP);
 }
 
 // ---------------------------------------------------------------- formatting

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "esp_err.h"
@@ -14,7 +15,7 @@ esp_err_t stream_start(size_t max_frames_size);
 esp_err_t stream_register(httpd_handle_t server);
 
 /** Replaces the frames waiting to be sent. Never blocks on the network, so a slow client only misses frames. */
-void stream_publish(const uint8_t *frames, size_t length);
+void stream_publish(const uint8_t *frames, size_t length, bool single_capture);
 
 /** Sends a text message to every WebSocket client. */
 void stream_broadcast_text(const char *text);

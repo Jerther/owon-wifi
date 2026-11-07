@@ -1,9 +1,10 @@
 import {
   ADC_RANGE, CH1, EXT, GND, MAX_FFT_SIZE, MODE_STOPPED, SAMPLES, SAMPLING_RATES, SWEEP_AUTO, VOLT_RANGES,
   autosetChannel, buildAllWrites, buildCsv, buildForceTriggerWrites, buildChannelWrites, buildSamplingWrites,
-  buildTriggerWrites, channelMask, clip, computeSpectrum, createFft, createFrameSlot, displayedTriggerPosition,
-  encodeMode, encodeWrites, fftSizeFor, forceGround, formatSi, frameCount, frameMinMax, fullScaleVolts, hannWindow,
-  isOneShot, levelDivAtScreen, measure, offsetAtScreen, parseFlash, parseFrameInto, positionAtScreen,
+  buildTriggerWrites, captureSetup, channelMask, clip, computeSpectrum, createFft, createFrameSlot, displayMapping,
+  displayedTriggerPosition, encodeMode, encodeWrites, fftSizeFor, forceGround, formatSi, frameCount, frameMinMax,
+  fullScaleVolts, hannWindow, isSingleCapture, levelDivAtMidpoint, levelDivAtScreen, levelDivForRange, measure,
+  offsetAtScreen, parseFlash, parseFrameInto, positionAtScreen,
   rateIndexForPeriod, readSequence, restoreSettings, runModeFor, sampleScale, sampleTimeSeconds, samplingFor,
   screenToVolts, timeRangeSeconds, voltsPerDivision,
 } from '/scope_logic.js';
@@ -16,7 +17,8 @@ const STATS_MS = 1000;
 const READOUT_MS = 250;
 const PUSH_DELAY_MS = 30;
 const DRAG_PUSH_MS = 50;
-const SINGLE_GUARD_MS = 150;
+const DOUBLE_TAP_MS = 350;
+const MIN_TRIGGER_WAIT_MS = 1000;
 const AUTOSET_SETTLE_MS = 300;
 const AUTOSET_MAX_TRIES = 10;
 const AUTOSET_RATE = 25e3;
@@ -24,6 +26,9 @@ const CURSOR_GRAB_PX = 24;
 const FFT_SPAN_DB = 100;
 const MIN_FFT_SIZE = 16;
 const ALL_GROUPS = ['sampling', 'channel0', 'channel1', 'trigger'];
+const RUN = 'run';
+const STOP = 'stop';
+const SINGLE = 'single';
 
 const $ = (id) => document.getElementById(id);
 const traceCanvas = $('trace');
@@ -35,8 +40,11 @@ const app = {
   store: { settings: restoreSettings(null), ui: defaultUi() },
   flash: null,
   link: 'offline',
-  running: true,
-  single: false,
+  acquire: RUN,
+  singleCount: 0,
+  capture: null,
+  lastFrameAt: 0,
+  lastTap: null,
   socket: null,
   generation: 0,
   pending: new Set(),
@@ -45,7 +53,6 @@ const app = {
   dirty: true,
   gridDirty: true,
   slots: [createFrameSlot(), createFrameSlot()],
-  ignoreUntil: 0,
   autoset: null,
   drag: null,
   handleDrag: null,
@@ -107,18 +114,13 @@ function send(data) {
   }
 }
 
-// Frames already in flight must not pass for the result of a new single capture.
-function discardStaleFrames(delay) {
-  app.latest = null;
-  app.ignoreUntil = performance.now() + delay;
+function singleArmed() {
+  return app.acquire === SINGLE;
 }
 
 function sendMode() {
   const settings = app.store.settings;
-  const mode = app.running ? runModeFor(settings, app.single) : MODE_STOPPED;
-  if (app.running && isOneShot(settings, app.single)) {
-    discardStaleFrames(SINGLE_GUARD_MS);
-  }
+  const mode = app.acquire === STOP ? MODE_STOPPED : runModeFor(settings, singleArmed());
   send(encodeMode(channelMask(settings), mode));
 }
 
@@ -139,7 +141,7 @@ function writesForGroups(groups) {
     }
   });
   if (groups.has('trigger')) {
-    writes.push(...buildTriggerWrites(settings, app.single));
+    writes.push(...buildTriggerWrites(settings, singleArmed()));
   }
   return writes;
 }
@@ -167,7 +169,7 @@ function flushNow() {
 }
 
 function pushEverything() {
-  sendWrites(buildAllWrites(app.store.settings, app.flash.calibration, app.single));
+  sendWrites(buildAllWrites(app.store.settings, app.flash.calibration, singleArmed()));
   sendMode();
 }
 
@@ -232,6 +234,11 @@ function parseEvent(text) {
   return event;
 }
 
+// Frames from before a Single press are still on their way: only the board's own capture ends a single.
+function acceptsFrame(message) {
+  return app.acquire === RUN || (singleArmed() && isSingleCapture(message));
+}
+
 function onBinary(message) {
   const stats = app.stats;
   const sequence = readSequence(message);
@@ -241,8 +248,9 @@ function onBinary(message) {
   stats.lastSequence = sequence;
   stats.messages++;
   stats.bytes += message.byteLength;
-  if (app.running && performance.now() >= app.ignoreUntil) {
+  if (acceptsFrame(message)) {
     app.latest = message;
+    app.lastFrameAt = performance.now();
   }
 }
 
@@ -289,21 +297,20 @@ function groupsFor(path) {
   return groups;
 }
 
-function isLastChannelOff(path, value) {
-  const channels = app.store.settings.channels;
-  const [, section, index] = path.split('.');
-  const turningOff = section === 'channels' && path.endsWith('.on') && value === false;
-  return turningOff && !channels[1 - Number(index)].on;
+function keepTriggerVolts(path, rangeIndex) {
+  const { channels, trigger } = app.store.settings;
+  if (path === `settings.channels.${trigger.source}.rangeIndex`) {
+    trigger.levelDiv = levelDivForRange(trigger.levelDiv, channels[trigger.source].rangeIndex, rangeIndex);
+  }
 }
 
 function applyChange(path, value, delay = PUSH_DELAY_MS) {
-  if (!isLastChannelOff(path, value)) {
-    setPath(path, value);
-    if (path.startsWith('settings.')) {
-      schedulePush(groupsFor(path), delay);
-    }
-    afterChange();
+  keepTriggerVolts(path, value);
+  setPath(path, value);
+  if (path.startsWith('settings.')) {
+    schedulePush(groupsFor(path), delay);
   }
+  afterChange();
 }
 
 function afterChange() {
@@ -330,6 +337,15 @@ function bindControls() {
     const eventName = element.matches('input, select') ? 'input' : 'click';
     element.addEventListener(eventName, () => applyChange(element.dataset.key, controlValue(element)));
   });
+  document.querySelectorAll('[data-step]').forEach((element) => {
+    element.addEventListener('click', () => stepControl(element));
+  });
+}
+
+function stepControl(element) {
+  const path = element.dataset.step;
+  const select = element.parentElement.querySelector('select');
+  applyChange(path, clip(getPath(path) + Number(element.dataset.delta), 0, select.options.length - 1));
 }
 
 // ---------------------------------------------------------------- control display
@@ -367,7 +383,7 @@ function outputText(path, value) {
     const source = settings.channels[settings.trigger.source];
     text = source ? formatSi(value * voltsPerDivision(source), 'V') : '-';
   } else {
-    text = `${Math.round(value * 100)} %`;
+    text = formatSi((value - 0.5) * timeRangeSeconds(settings.rateIndex), 's');
   }
   return text;
 }
@@ -390,73 +406,123 @@ function syncControls() {
   document.querySelectorAll('[data-out]').forEach((output) => {
     output.textContent = outputText(output.dataset.out, getPath(output.dataset.out));
   });
-  $('level').disabled = settings.trigger.source === EXT;
+  const external = settings.trigger.source === EXT;
+  $('level').disabled = external;
+  $('level-50').disabled = external;
+  $('position').disabled = samplingFor(settings.rateIndex).roll;
+  settings.channels.forEach((channel, index) => {
+    $(`on-${index}`).disabled = channel.on && !settings.channels[1 - index].on;
+  });
+  document.querySelectorAll('[data-key="ui.cursorChannel"]').forEach((element) => {
+    element.disabled = !app.store.ui.cursorsV;
+  });
   traceCanvas.style.touchAction = cursorsActive() ? 'none' : 'pan-y';
   refreshState();
 }
 
-const STATE_TEXT = {
-  offline: 'No connection', waiting: 'Waiting for the scope', running: 'Running', stopped: 'Stopped',
-  single: 'Single: waiting for trigger', autoset: 'Autoset...',
+const STATE_DISPLAY = {
+  offline: { text: 'No connection', tone: 'offline' },
+  connecting: { text: 'Waiting for the scope', tone: 'waiting' },
+  autoset: { text: 'Autoset...', tone: 'running' },
+  auto: { text: 'Running (auto)', tone: 'running' },
+  roll: { text: 'Running (roll)', tone: 'running' },
+  triggered: { text: 'Running (triggered)', tone: 'running' },
+  awaiting: { text: 'Waiting for trigger', tone: 'waiting' },
+  armed: { text: 'Single: waiting for trigger', tone: 'waiting' },
+  stopped: { text: 'Stopped', tone: 'stopped' },
+  captured: { text: 'Single captured', tone: 'stopped' },
 };
 
-function stateName() {
-  let name = app.link;
-  if (app.link === 'ready') {
-    name = app.running ? 'running' : 'stopped';
+function framesAreFresh() {
+  const sweepMs = 2000 * timeRangeSeconds(app.store.settings.rateIndex);
+  return performance.now() - app.lastFrameAt < Math.max(MIN_TRIGGER_WAIT_MS, sweepMs);
+}
+
+function runningState() {
+  const settings = app.store.settings;
+  let name = framesAreFresh() ? 'triggered' : 'awaiting';
+  if (samplingFor(settings.rateIndex).roll) {
+    name = 'roll';
+  } else if (settings.trigger.sweep === SWEEP_AUTO) {
+    name = 'auto';
   }
-  if (name === 'running' && app.autoset) {
+  return name;
+}
+
+function acquisitionState() {
+  let name = app.singleCount > 0 ? 'captured' : 'stopped';
+  if (app.autoset) {
     name = 'autoset';
-  } else if (name === 'running' && isOneShot(app.store.settings, app.single)) {
-    name = 'single';
+  } else if (app.acquire === RUN) {
+    name = runningState();
+  } else if (singleArmed()) {
+    name = 'armed';
+  }
+  return name;
+}
+
+function stateName() {
+  let name = app.link === 'offline' ? 'offline' : 'connecting';
+  if (app.link === 'ready') {
+    name = acquisitionState();
   }
   return name;
 }
 
 function refreshState() {
   const name = stateName();
+  const display = STATE_DISPLAY[name];
   const pill = $('state');
-  pill.textContent = STATE_TEXT[name];
-  pill.dataset.state = name === 'single' || name === 'autoset' ? 'running' : name;
+  const running = app.acquire === RUN;
+  pill.textContent = name === 'captured' ? `${display.text} (${app.singleCount})` : display.text;
+  pill.dataset.state = display.tone;
   const run = $('run');
-  run.textContent = app.running ? 'Stop' : 'Run';
-  run.dataset.running = String(app.running);
+  run.textContent = running ? 'Stop' : 'Run';
+  run.dataset.running = String(running);
+  $('single').dataset.armed = String(singleArmed());
+  $('force').disabled = app.acquire === STOP;
 }
 
 // ---------------------------------------------------------------- actions
 
-// Run also rewrites the trigger so a previous single's Once sweep bits give way to the selected sweep.
-function setRunning(running) {
-  app.running = running;
-  app.single = false;
-  discardStaleFrames(PUSH_DELAY_MS + SINGLE_GUARD_MS);
-  if (app.flash && running) {
-    schedulePush(['trigger']);
-  } else if (app.flash) {
+// Run and Single rewrite the trigger: the Once sweep bits belong to a single only.
+function setAcquire(acquire) {
+  app.acquire = acquire;
+  app.latest = null;
+  app.singleCount = acquire === RUN ? 0 : app.singleCount;
+  if (app.flash && acquire === STOP) {
     sendMode();
+  } else if (app.flash) {
+    schedulePush(['trigger']);
   }
   refreshState();
 }
 
-function startSingle() {
-  app.running = true;
-  app.single = true;
-  discardStaleFrames(PUSH_DELAY_MS + SINGLE_GUARD_MS);
-  schedulePush(['trigger']);
-  refreshState();
+function toggleRun() {
+  setAcquire(app.acquire === RUN ? STOP : RUN);
+}
+
+function setLevelToMiddle() {
+  const settings = app.store.settings;
+  const source = settings.trigger.source;
+  const slot = app.slots[source];
+  if (slot && slot.present) {
+    const { low, high } = frameMinMax(slot);
+    const level = levelDivAtMidpoint(low, high, app.capture.channels[source], settings.channels[source]);
+    applyChange('settings.trigger.levelDiv', level);
+  }
 }
 
 function exportCsv() {
-  const settings = app.store.settings;
   const columns = [];
   app.slots.forEach((slot, index) => {
     if (slot.present) {
-      const { scale, shift } = sampleScale(settings.channels[index]);
+      const { scale, shift } = sampleScale(app.capture.channels[index]);
       columns.push({ name: `CH${index + 1}`, samples: slot.samples, first: slot.first, scale, shift });
     }
   });
   if (columns.length > 0) {
-    const text = buildCsv(columns, samplingFor(settings.rateIndex).rate, displayedTriggerPosition(settings));
+    const text = buildCsv(columns, samplingFor(app.capture.rateIndex).rate, displayedTriggerPosition(app.capture));
     download(new Blob([text], { type: 'text/csv' }), `owon-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`);
   }
 }
@@ -472,8 +538,9 @@ function download(blob, filename) {
 }
 
 function bindActions() {
-  $('run').addEventListener('click', () => setRunning(!app.running));
-  $('single').addEventListener('click', startSingle);
+  $('run').addEventListener('click', toggleRun);
+  $('single').addEventListener('click', () => setAcquire(SINGLE));
+  $('level-50').addEventListener('click', setLevelToMiddle);
   $('autoset').addEventListener('click', startAutoset);
   $('force').addEventListener('click', () => sendWrites(buildForceTriggerWrites()));
   $('export').addEventListener('click', exportCsv);
@@ -487,8 +554,8 @@ function startAutoset() {
   Object.assign(settings.trigger, { sweep: SWEEP_AUTO, position: 0.5 });
   settings.rateIndex = SAMPLING_RATES.indexOf(AUTOSET_RATE);
   settings.peak = true;
-  app.running = true;
-  app.single = false;
+  app.acquire = RUN;
+  app.singleCount = 0;
   app.autoset = { tries: 0, rateLimit: SAMPLING_RATES.length, settleUntil: performance.now() + AUTOSET_SETTLE_MS, levels: [0, 0], amplitudes: [0, 0] };
   schedulePush(ALL_GROUPS);
   afterChange();
@@ -567,6 +634,7 @@ function consumeLatest() {
   const roll = samplingFor(settings.rateIndex).roll;
   app.latest = null;
   app.slots.forEach((slot) => { slot.present = false; });
+  app.capture = captureSetup(settings);
   for (let index = 0; index < frameCount(message.byteLength); index++) {
     const slot = parseFrameInto(message, index, roll, app.slots);
     const channel = settings.channels[slot.channel];
@@ -576,9 +644,9 @@ function consumeLatest() {
   }
   if (app.autoset) {
     autosetStep();
-  } else if (isOneShot(settings, app.single)) {
-    app.running = false;
-    app.single = false;
+  } else if (singleArmed()) {
+    app.acquire = STOP;
+    app.singleCount++;
     refreshState();
   }
   app.dirty = true;
@@ -635,10 +703,6 @@ function drawTicks(context, width, height, ratio) {
   context.stroke();
 }
 
-function sampleY(sample, height) {
-  return height * (0.5 - sample / ADC_RANGE);
-}
-
 function strokePath(context, color) {
   context.strokeStyle = color;
   context.lineWidth = 1.5 * pixelRatio();
@@ -648,7 +712,7 @@ function strokePath(context, color) {
 
 // ---------------------------------------------------------------- drawing: time view
 
-function addColumn(context, samples, start, end, x, height, isFirst) {
+function addColumn(context, samples, start, end, x, y, isFirst) {
   let low = samples[start];
   let high = low;
   for (let i = start + 1; i < end; i++) {
@@ -656,41 +720,57 @@ function addColumn(context, samples, start, end, x, height, isFirst) {
     high = Math.max(high, samples[i]);
   }
   if (isFirst) {
-    context.moveTo(x, sampleY(samples[start], height));
+    context.moveTo(x, y(samples[start]));
   } else {
-    context.lineTo(x, sampleY(samples[start], height));
+    context.lineTo(x, y(samples[start]));
   }
-  context.lineTo(x, sampleY(low, height));
-  context.lineTo(x, sampleY(high, height));
-  context.lineTo(x, sampleY(samples[end - 1], height));
+  context.lineTo(x, y(low));
+  context.lineTo(x, y(high));
+  context.lineTo(x, y(samples[end - 1]));
 }
 
-function tracePolyline(context, slot, width, height) {
-  const step = width / SAMPLES;
-  context.moveTo((slot.first + 0.5) * step, sampleY(slot.samples[slot.first], height));
-  for (let i = slot.first + 1; i < SAMPLES; i++) {
-    context.lineTo((i + 0.5) * step, sampleY(slot.samples[i], height));
+// Sample index at the left edge of the plot, which is not 0 once the capture is zoomed or moved.
+function leftEdgeSample(mapping) {
+  return (-mapping.xShift / mapping.xGain) * SAMPLES;
+}
+
+function tracePolyline(context, slot, mapping, y, width) {
+  const step = (width * mapping.xGain) / SAMPLES;
+  const left = leftEdgeSample(mapping);
+  const start = Math.max(slot.first, Math.floor(left) - 1);
+  const end = Math.min(SAMPLES, Math.ceil(left + width / step) + 1);
+  for (let i = start; i < end; i++) {
+    const x = (i + 0.5 - left) * step;
+    if (i === start) {
+      context.moveTo(x, y(slot.samples[i]));
+    } else {
+      context.lineTo(x, y(slot.samples[i]));
+    }
   }
 }
 
-function traceColumns(context, slot, width, height) {
-  const perColumn = SAMPLES / width;
-  const firstColumn = Math.floor(slot.first / perColumn);
-  for (let column = firstColumn; column < width; column++) {
-    const start = Math.max(slot.first, Math.floor(column * perColumn));
-    const end = Math.min(SAMPLES, Math.floor((column + 1) * perColumn));
+function traceColumns(context, slot, mapping, y, width) {
+  const perColumn = SAMPLES / (width * mapping.xGain);
+  const left = leftEdgeSample(mapping);
+  let isFirst = true;
+  for (let column = 0; column < width; column++) {
+    const start = Math.max(slot.first, Math.floor(left + column * perColumn));
+    const end = Math.min(SAMPLES, Math.floor(left + (column + 1) * perColumn));
     if (end > start) {
-      addColumn(context, slot.samples, start, end, column + 0.5, height, column === firstColumn);
+      addColumn(context, slot.samples, start, end, column + 0.5, y, isFirst);
+      isFirst = false;
     }
   }
 }
 
 function drawTrace(slot, index, width, height) {
+  const mapping = displayMapping(app.capture, app.store.settings, index);
+  const y = (sample) => height * (0.5 - (sample / ADC_RANGE) * mapping.yGain - mapping.yShift);
   traceContext.beginPath();
-  if (SAMPLES / width < 2) {
-    tracePolyline(traceContext, slot, width, height);
+  if (SAMPLES / (width * mapping.xGain) < 2) {
+    tracePolyline(traceContext, slot, mapping, y, width);
   } else {
-    traceColumns(traceContext, slot, width, height);
+    traceColumns(traceContext, slot, mapping, y, width);
   }
   strokePath(traceContext, TRACE_COLORS[index]);
 }
@@ -796,15 +876,21 @@ function drawTimeView(width, height) {
 
 // ---------------------------------------------------------------- drawing: XY view
 
+// Fraction of the plot from its centre, ground centred, at the current range.
+function xyFraction(sample, index) {
+  const captured = app.capture.channels[index];
+  const mapping = displayMapping(app.capture, app.store.settings, index);
+  return (sample / ADC_RANGE - captured.offset) * mapping.yGain;
+}
+
 function drawXyView(width, height) {
   const [slotX, slotY] = app.slots;
-  const [channelX, channelY] = app.store.settings.channels;
   if (slotX.present && slotY.present) {
     const first = Math.max(slotX.first, slotY.first);
     traceContext.beginPath();
     for (let i = first; i < SAMPLES; i++) {
-      const x = width * (slotX.samples[i] / ADC_RANGE - channelX.offset + 0.5);
-      const y = height * (0.5 + channelY.offset - slotY.samples[i] / ADC_RANGE);
+      const x = width * (0.5 + xyFraction(slotX.samples[i], 0));
+      const y = height * (0.5 - xyFraction(slotY.samples[i], 1));
       if (i === first) {
         traceContext.moveTo(x, y);
       } else {
@@ -843,7 +929,7 @@ function updateSpectrum(index) {
   if (size >= MIN_FFT_SIZE) {
     const plan = cached(fft.plans, size, createFft);
     const window = cached(fft.windows, size, hannWindow);
-    fft.sizes[index] = computeSpectrum(plan, window, slot, app.store.settings.channels[index], fft.work, fft.db[index]);
+    fft.sizes[index] = computeSpectrum(plan, window, slot, app.capture.channels[index], fft.work, fft.db[index]);
   }
 }
 
@@ -950,7 +1036,7 @@ function buildMeasureTable() {
 function showMeasures(index) {
   const slot = app.slots[index];
   const on = slot.present && app.store.settings.channels[index].on;
-  const result = on ? measure(slot, app.store.settings.channels[index]) : null;
+  const result = on ? measure(slot, app.capture.channels[index]) : null;
   const values = result
     ? [result.frequency > 0 ? formatSi(result.frequency, 'Hz') : '-', ...[result.vpp, result.vmax, result.vmin, result.vavg, result.vrms].map((v) => formatSi(v, 'V'))]
     : ['-', '-', '-', '-', '-', '-'];
@@ -992,7 +1078,7 @@ function cursorText() {
 
 function fftText() {
   const settings = app.store.settings;
-  const rate = samplingFor(settings.rateIndex).rate;
+  const rate = samplingFor((app.capture || settings).rateIndex).rate;
   const parts = [`0 - ${formatSi(rate / 2, 'Hz')}, ${formatSi(rate / 20, 'Hz')}/div, ${app.fft.top} dBV top, 10 dB/div`];
   [0, 1].forEach((index) => {
     const size = app.fft.sizes[index];
@@ -1006,6 +1092,7 @@ function fftText() {
 
 function updateReadouts() {
   const view = app.store.ui.view;
+  refreshState();
   showMeasures(0);
   showMeasures(1);
   updateScaleStrip();
@@ -1171,7 +1258,7 @@ function dragReadoutText(drag) {
   if (drag.kind === 'level') {
     text = `Trigger ${formatSi(settings.trigger.levelDiv * voltsPerDivision(channel), 'V')}`;
   } else if (drag.kind === 'position') {
-    text = `Trigger ${formatSi(settings.trigger.position * timeRangeSeconds(settings.rateIndex), 's')} from left`;
+    text = `Trigger ${formatSi((settings.trigger.position - 0.5) * timeRangeSeconds(settings.rateIndex), 's')} from centre`;
   }
   return text;
 }
@@ -1232,9 +1319,22 @@ function onHandleUp() {
     if (drag.moved) {
       schedulePush(groupsFor(dragPath(drag)));
       flushNow();
+    } else {
+      onHandleTap(drag);
     }
     app.dirty = true;
   }
+}
+
+// A double tap is the bench scope's "push the knob": back to centre.
+function onHandleTap(drag) {
+  const now = performance.now();
+  const last = app.lastTap;
+  const isDouble = last && last.kind === drag.kind && last.index === drag.index && now - last.at < DOUBLE_TAP_MS;
+  if (isDouble) {
+    applyChange(dragPath(drag), drag.kind === 'position' ? 0.5 : 0);
+  }
+  app.lastTap = isDouble ? null : { kind: drag.kind, index: drag.index, at: now };
 }
 
 function bindHandles() {
