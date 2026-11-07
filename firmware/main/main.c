@@ -123,7 +123,9 @@ static esp_err_t fetch_once(session_t *session) {
     size_t count;
     const esp_err_t err = vds1022_fetch_frames(session->acquisition.channel_mask, s_frames, &count);
     if (err == ESP_OK) {
-        const bool single_capture = session->acquisition.mode == ACQUISITION_SINGLE;
+        // In roll mode a single goes on until the restarted buffer fills the screen.
+        const bool single_capture =
+            session->acquisition.mode == ACQUISITION_SINGLE && vds1022_frames_full(s_frames, count);
         stream_publish(s_frames, count * VDS1022_FRAME_SIZE, single_capture);
         session->fetched++;
         session->force_pending = false;

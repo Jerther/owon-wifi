@@ -235,8 +235,10 @@ function parseEvent(text) {
 }
 
 // Frames from before a Single press are still on their way: only the board's own capture ends a single.
+// In roll mode a single shows the screen filling up until then.
 function acceptsFrame(message) {
-  return app.acquire === RUN || (singleArmed() && isSingleCapture(message));
+  const rolling = samplingFor(app.store.settings.rateIndex).roll;
+  return app.acquire === RUN || (singleArmed() && (rolling || isSingleCapture(message)));
 }
 
 function onBinary(message) {
@@ -644,7 +646,7 @@ function consumeLatest() {
   }
   if (app.autoset) {
     autosetStep();
-  } else if (singleArmed()) {
+  } else if (singleArmed() && isSingleCapture(message)) {
     app.acquire = STOP;
     app.singleCount++;
     refreshState();

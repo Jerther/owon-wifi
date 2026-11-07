@@ -33,6 +33,9 @@ esp_err_t vds1022_configure(const vds1022_flash_t *flash);
 /** Fetches one raw frame per channel of `channel_mask` (bit 0 CH1, bit 1 CH2) into `frames`, back to back. */
 esp_err_t vds1022_fetch_frames(uint8_t channel_mask, uint8_t *frames, size_t *count);
 
+/** Whether every frame holds a full screen of samples: a roll-mode buffer fills up after each restart. */
+bool vds1022_frames_full(const uint8_t *frames, size_t count);
+
 /** Writes one register and discards the reply. */
 esp_err_t vds1022_send_register(uint32_t address, uint8_t size, uint32_t value);
 

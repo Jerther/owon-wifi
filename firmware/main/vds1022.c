@@ -28,6 +28,8 @@
 #define FETCH_RETRY_DELAY_MS 2
 
 #define ADC_SIZE 5100
+#define SAMPLES 5000
+#define FRAME_CURSOR_OFFSET 9
 #define RANGE_2V 5
 #define COUPLING_DC 1
 #define TIMEBASE_250KSPS 400
@@ -391,6 +393,16 @@ esp_err_t vds1022_fetch_frames(uint8_t channel_mask, uint8_t *frames, size_t *co
         }
     }
     return err;
+}
+
+bool vds1022_frames_full(const uint8_t *frames, size_t count) {
+    bool full = true;
+    for (size_t index = 0; index < count; index++) {
+        uint16_t cursor;
+        memcpy(&cursor, &frames[index * VDS1022_FRAME_SIZE + FRAME_CURSOR_OFFSET], sizeof(cursor));
+        full = full && cursor >= SAMPLES;
+    }
+    return full;
 }
 
 esp_err_t vds1022_send_register(uint32_t address, uint8_t size, uint32_t value) {

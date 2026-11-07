@@ -130,13 +130,13 @@ This repository holds `PROJECT.md` and `firmware/`. The firmware embeds the FPGA
    - Single is a one-shot button that keeps the selected sweep (Auto or Normal; Once is no longer a sweep choice, and an old saved Once becomes Auto); Run resumes by the sweep. Arrow handles drag trigger level (right), trigger position (top) and channel position (left), rather than whole lines, to avoid accidental grabs on a phone.
    - Has: run/stop, single, force, autoset; per-channel on/off, range, probe, coupling, position; timebase, roll, peak; edge trigger; measurements; cursors; FFT; XY; CSV export; stats.
    - AC and DC confirmed right by the user. GND: the hardware has no ground relay (mode 2 acts like AC, and the vendor app also forces ground in software), so the page draws a flat trace at the ground marker; the input stays connected.
-   - **Still to check with a real signal**: precise voltage and frequency accuracy, probe scaling, trigger level and position, drag feel on a phone, whether single needs the Once bits in the trigger register, force, autoset, roll mode, phone performance. The firmware's trigger-ready check and stopped-mode keepalive are also unverified on hardware.
+   - **Checked on board 1 with the 5 V / 1 kHz calibration signal (2026-11-07)**: voltage, frequency (also on the non-source channel), probe scaling, single (also in roll mode, which fills the screen before stopping), Force, Normal-mode wait, trigger level and position, drag arrows with a mouse, roll mode, stopped-mode keepalive.
    - Protocol between browser and board: see `firmware/main/control.c` and `stream.c`. The board refuses register writes that could overwrite the scope's flash or desynchronize the protocol.
    - Not done: pass/fail, protocol decoding, math channels, recording, pulse/slope/video trigger, login on upload and settings.
 
 ## What's left
 
-2. Finish checks on the real scope, on a phone: a captured single, drag arrows, Force, trigger level and position, roll mode, frequency on the non-source channel, the firmware's triggered-mode wait and stopped-mode keepalive, and single in roll mode.
+2. Check on a real phone: drag feel with a finger, and performance.
 3. Fast timebases: the page stops at 5 us/div (100 MS/s, 5000 samples) while the scope is rated to 5 ns/div; a zoom on the capture could reach them.
 4. Remaining features from the Java app: pass/fail, protocol decoding, math channels, recording, pulse/slope/video trigger.
 5. Login on firmware upload and Wi-Fi settings.
