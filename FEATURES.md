@@ -3,7 +3,7 @@
 Sources: `OWON-VDS1022/doc/manual_en.pdf` (V1.3), `README.md`, `changes.txt` and the class list of `lib/owon-vds-tiny-1.1.5-cf19.jar`. Last checked 2026-11-07.
 "Fork" means an addition made by florentbr's fork, not by OWON.
 
-**Already done**: run/stop, single (also in roll mode), force, autoset; channel on/off, volts/div, position, DC/AC coupling, GND (software only), probe ×1/×10/×100; time base from 5 µs/div up, roll mode, peak detect; edge trigger (auto/normal, CH1/CH2/EXT, rising/falling, level, position, 50 %), drag arrows for level, trigger position and channel position; measurements Frequency, Vpp, Vmax, Vmin, Vavg, Vrms; V and T cursors on CH1 or CH2; Hann FFT in dBV with peak readout; XY; CSV export; settings kept in the browser.
+**Already done**: run/stop, single (also in roll mode), force, autoset; channel on/off, volts/div, position, DC/AC coupling, GND (software only), probe ×1/×10/×100; time base from 5 ns/div up (sin(x)/x below 5 µs/div), waveform quality label, roll mode, peak detect; edge trigger (auto/normal, CH1/CH2/EXT, rising/falling, level, position, 50 %), drag arrows for level, trigger position and channel position; measurements Frequency, Vpp, Vmax, Vmin, Vavg, Vrms; V and T cursors on CH1 or CH2; Hann FFT in dBV with peak readout; XY; CSV export; settings kept in the browser.
 
 ## Left to do
 
@@ -22,8 +22,6 @@ Sources: `OWON-VDS1022/doc/manual_en.pdf` (V1.3), `README.md`, `changes.txt` and
 | Vertical | Probes ×20, ×50, ×500, ×1000 (fork) | | Missing |
 | Vertical | Current probe mode (fork) | V to A | Missing |
 | Vertical | Hardware frequency counter | 6 digits, from the frame header | Partial: computed from the samples |
-| Horizontal | Fast time bases 2 µs to 5 ns/div | sin(x)/x interpolation on 100 MS/s captures | Missing; see `PROJECT.md` |
-| Horizontal | Waveform quality hint (our own) | — | Missing. Small, non-intrusive label when the trace may not match the signal, from the ratio of sample rate to signal frequency (Dave Jones, EEVblog: aim for about 10×; distortion starts below about 2.5×). Levels: ≥ 10× nothing; 4–10× "fair"; 2.5–4× "poor"; < 2.5× "unreliable, may be aliased". Signal frequency from the frame header's hardware counter (counts at 100 MHz whatever the sample rate, so it also catches aliasing at slow time bases) and, for the other channel, from the highest strong FFT component |
 | Horizontal | Zoom window | Two cursors mark an area, shown full screen with its own time base | Missing |
 | Horizontal | Memory depth | 1K to 5K | Missing: always 5K |
 | Measurements | Choose which to show | Up to 8 per channel out of 20 | Partial: fixed 6 |

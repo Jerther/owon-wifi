@@ -137,7 +137,7 @@ This repository holds `PROJECT.md` and `firmware/`. The firmware embeds the FPGA
 ## What's left
 
 2. Check on a real phone, once the UI changes are done (the user does it in one go): drag feel with a finger, and performance.
-3. Fast timebases: the page stops at 5 us/div (100 MS/s, 5000 samples) while the scope is rated to 5 ns/div. OWON's app gets there by sin(x)/x interpolation (`interpolate` package in the jar, "Interpolation" in the manual's spec table); valid since the bandwidth (25 MHz) is under Nyquist (50 MHz). Plan, page only: keep capturing at 100 MS/s, show a window around the trigger, interpolate, and find the trigger crossing between samples to remove up to 10 ns of jitter. Steps: 2, 1 us; 500, 200, 100, 50, 20, 10, 5 ns/div.
+3. ~~Fast timebases.~~ Done in 0.5.8 (2 us to 5 ns/div): the scope still samples at 100 MS/s; the page draws a windowed sin(x)/x interpolation, aligns the trigger crossing between samples, and shows a quality label when there are fewer than 10 samples per period. Checked on board 1 with the calibration signal only (its edges are too slow to show much): stable trace, no jitter seen. Still to check with a signal of a few MHz.
 4. Remaining features from the Java app: list in [FEATURES.md](FEATURES.md).
 6. Hardware: pick and cut the box, measure the voltage at the scope with the brick, check and prepare board 2. Later: battery, INA219.
 

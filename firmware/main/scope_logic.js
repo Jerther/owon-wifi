@@ -17,9 +17,11 @@ export const MODE_SINGLE = 3;
 
 export const VOLT_RANGES = [50e-3, 100e-3, 200e-3, 500e-3, 1, 2, 5, 10, 20, 50];
 // The nominal 2.5 S/s entry is left out: the Python clamps it to 3 S/s (max(3, rate)).
+// Above 100 MS/s the scope still samples at 100 MS/s and the page interpolates (2 us to 5 ns/div).
 export const SAMPLING_RATES = [
   5, 12.5, 25, 50, 125, 250, 500, 1.25e3, 2.5e3, 5e3, 12.5e3, 25e3, 50e3, 125e3, 250e3, 500e3,
   1.25e6, 2.5e6, 5e6, 12.5e6, 25e6, 50e6, 100e6,
+  250e6, 500e6, 1e9, 2.5e9, 5e9, 10e9, 25e9, 50e9, 100e9,
 ];
 export const PROBES = [1, 10, 100];
 export const DIVISIONS = 10;
@@ -243,15 +245,17 @@ export function sampleScale(channel) {
   return { scale: fullScale / ADC_RANGE, shift: -fullScale * channel.offset };
 }
 
+// rate: what the scope samples at; displayRate: what the time base shows, higher once interpolated.
 export function samplingFor(rateIndex) {
-  const rate = SAMPLING_RATES[rateIndex];
-  const prescaler = Math.max(1, pyRound(BASE_CLOCK / Math.max(3, rate)));
-  const actualRate = BASE_CLOCK / prescaler;
-  return { prescaler, rate: actualRate, roll: actualRate < ROLLMODE_THRESHOLD };
+  const nominal = SAMPLING_RATES[rateIndex];
+  const prescaler = Math.max(1, pyRound(BASE_CLOCK / Math.max(3, nominal)));
+  const rate = BASE_CLOCK / prescaler;
+  const displayRate = Math.max(rate, nominal);
+  return { prescaler, rate, displayRate, roll: rate < ROLLMODE_THRESHOLD, interpolated: displayRate > rate };
 }
 
 export function timeRangeSeconds(rateIndex) {
-  return SAMPLES / samplingFor(rateIndex).rate;
+  return SAMPLES / samplingFor(rateIndex).displayRate;
 }
 
 // Roll mode draws the trigger origin on the right (Python: trigger_position = 1).
@@ -540,11 +544,13 @@ export function sampleTimeSeconds(index, rate, position) {
 }
 
 // The setup a frame was captured with: frames stay readable after the settings change.
+// triggerShift: samples from the nominal trigger index to the measured crossing (see triggerShift).
 export function captureSetup(settings) {
   return {
     channels: settings.channels.map((channel) => ({ ...channel })),
     rateIndex: settings.rateIndex,
     trigger: { position: settings.trigger.position },
+    triggerShift: 0,
   };
 }
 
@@ -554,13 +560,113 @@ export function displayMapping(capture, settings, index) {
   const captured = capture.channels[index];
   const current = settings.channels[index];
   const yGain = fullScaleVolts(captured) / fullScaleVolts(current);
-  const xGain = samplingFor(settings.rateIndex).rate / samplingFor(capture.rateIndex).rate;
+  const xGain = samplingFor(settings.rateIndex).displayRate / samplingFor(capture.rateIndex).rate;
+  const triggerFraction = displayedTriggerPosition(capture) + capture.triggerShift / SAMPLES;
   return {
     yGain,
     yShift: current.offset - captured.offset * yGain,
     xGain,
-    xShift: displayedTriggerPosition(settings) - displayedTriggerPosition(capture) * xGain,
+    xShift: displayedTriggerPosition(settings) - triggerFraction * xGain,
   };
+}
+
+// ---------------------------------------------------------------- interpolation
+
+const LANCZOS_LOBES = 6;
+const TRIGGER_SEARCH = 20;
+const CROSSING_STEPS = 12;
+
+function lanczos(x) {
+  let weight = 1;
+  if (x !== 0) {
+    const a = Math.PI * x;
+    const b = a / LANCZOS_LOBES;
+    weight = (Math.sin(a) / a) * (Math.sin(b) / b);
+  }
+  return weight;
+}
+
+// Band-limited value between samples (windowed sin(x)/x), only valid samples from first on.
+export function interpolatedSample(samples, first, position) {
+  const centre = Math.floor(position);
+  const start = Math.max(first, centre - LANCZOS_LOBES + 1);
+  const end = Math.min(SAMPLES - 1, centre + LANCZOS_LOBES);
+  let sum = 0;
+  let weights = 0;
+  for (let i = start; i <= end; i++) {
+    const weight = lanczos(position - i);
+    sum += samples[i] * weight;
+    weights += weight;
+  }
+  return weights ? sum / weights : 0;
+}
+
+function crossesLevel(before, after, level, fall) {
+  return fall ? before > level && after <= level : before < level && after >= level;
+}
+
+// Finds where the interpolated signal crosses the level between samples i - 1 and i.
+function refineCrossing(samples, first, i, level, fall) {
+  let low = i - 1;
+  let high = i;
+  for (let step = 0; step < CROSSING_STEPS; step++) {
+    const middle = (low + high) / 2;
+    const value = interpolatedSample(samples, first, middle);
+    if (crossesLevel(interpolatedSample(samples, first, low), value, level, fall)) {
+      high = middle;
+    } else {
+      low = middle;
+    }
+  }
+  return (low + high) / 2;
+}
+
+// At 100 MS/s the trigger point is only known to the nearest sample (10 ns): at interpolated time
+// bases this jitters the trace, so it is aligned on the crossing nearest to the nominal index.
+export function triggerShift(settings, slots) {
+  const { source, fall, position } = settings.trigger;
+  const slot = slots[source];
+  let shift = 0;
+  if (samplingFor(settings.rateIndex).interpolated && source !== EXT && slot.present) {
+    const nominal = SAMPLES * position;
+    const level = triggerLevelCounts(settings);
+    const start = Math.max(slot.first + 1, Math.floor(nominal) - TRIGGER_SEARCH);
+    const end = Math.min(SAMPLES - 1, Math.ceil(nominal) + TRIGGER_SEARCH);
+    let best = null;
+    for (let i = start; i <= end; i++) {
+      const isNearer = best === null || Math.abs(i - nominal) < Math.abs(best - nominal);
+      if (crossesLevel(slot.samples[i - 1], slot.samples[i], level, fall) && isNearer) {
+        best = i;
+      }
+    }
+    shift = best === null ? 0 : refineCrossing(slot.samples, slot.first, best, level, fall) - nominal;
+  }
+  return shift;
+}
+
+// ---------------------------------------------------------------- fidelity
+
+export const FIDELITY_FAIR = 'fair';
+export const FIDELITY_POOR = 'poor';
+export const FIDELITY_UNRELIABLE = 'unreliable';
+const FIDELITY_GOOD_RATIO = 10;
+const FIDELITY_FAIR_RATIO = 4;
+const FIDELITY_POOR_RATIO = 2.5;
+
+// Samples per signal period (EEVblog rule of thumb: about 10 is good, below 2.5 the trace is unreliable).
+// Returns null when the trace can be trusted or the signal has no measurable frequency.
+export function fidelityLevel(rate, frequency) {
+  const ratio = rate / frequency;
+  let level = null;
+  if (frequency > 0 && ratio < FIDELITY_GOOD_RATIO) {
+    level = FIDELITY_FAIR;
+    if (ratio < FIDELITY_POOR_RATIO) {
+      level = FIDELITY_UNRELIABLE;
+    } else if (ratio < FIDELITY_FAIR_RATIO) {
+      level = FIDELITY_POOR;
+    }
+  }
+  return level;
 }
 
 export function sampleToVolts(sample, channel) {

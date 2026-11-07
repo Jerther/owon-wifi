@@ -154,13 +154,13 @@ test('test_given_gnd_off_channel_when_buildChannelWrites_then_state_has_no_on_bi
 test('test_given_250k_when_samplingFor_then_prescaler_400_without_roll', () => {
   const sampling = logic.samplingFor(logic.SAMPLING_RATES.indexOf(250e3));
 
-  assert.deepEqual(sampling, { prescaler: 400, rate: 250000, roll: false });
+  assert.deepEqual(sampling, { prescaler: 400, rate: 250000, displayRate: 250000, roll: false, interpolated: false });
 });
 
 test('test_given_1250_when_samplingFor_then_roll', () => {
   const sampling = logic.samplingFor(logic.SAMPLING_RATES.indexOf(1250));
 
-  assert.deepEqual(sampling, { prescaler: 80000, rate: 1250, roll: true });
+  assert.deepEqual(sampling, { prescaler: 80000, rate: 1250, displayRate: 1250, roll: true, interpolated: false });
 });
 
 test('test_given_2500_when_samplingFor_then_no_roll', () => {
@@ -838,4 +838,138 @@ test('test_given_saved_once_sweep_when_restoreSettings_then_auto_because_single_
   const saved = logic.defaultSettings();
   saved.trigger.sweep = logic.SWEEP_ONCE;
   assert.equal(logic.restoreSettings(saved).trigger.sweep, logic.SWEEP_AUTO);
+});
+
+// ---- fast time bases
+
+const FAST_RATE_INDEX = logic.SAMPLING_RATES.indexOf(5e9);
+
+function sineSlot(crossing, period, amplitude = 100, centre = 25) {
+  const slot = logic.createFrameSlot();
+  for (let i = 0; i < logic.SAMPLES; i++) {
+    slot.samples[i] = Math.round(centre + amplitude * Math.sin((2 * Math.PI * (i - crossing)) / period));
+  }
+  slot.present = true;
+  return slot;
+}
+
+function fastSettings(changes = {}) {
+  const settings = settingsWith(changes);
+  settings.rateIndex = FAST_RATE_INDEX;
+  return settings;
+}
+
+test('test_given_rate_above_100M_when_samplingFor_then_samples_at_100M_and_interpolates', () => {
+  const sampling = logic.samplingFor(FAST_RATE_INDEX);
+
+  assert.deepEqual(sampling, { prescaler: 1, rate: 100e6, displayRate: 5e9, roll: false, interpolated: true });
+});
+
+test('test_given_fastest_rate_when_timeRangeSeconds_then_5ns_per_division', () => {
+  const range = logic.timeRangeSeconds(logic.SAMPLING_RATES.length - 1);
+
+  assert.ok(Math.abs(range / logic.DIVISIONS - 5e-9) < 1e-18);
+});
+
+test('test_given_interpolated_capture_when_displayMapping_then_samples_spread_by_display_rate', () => {
+  const settings = fastSettings();
+
+  const { xGain } = logic.displayMapping(logic.captureSetup(settings), settings, 0);
+
+  assert.equal(xGain, 50);
+});
+
+test('test_given_trigger_shift_when_displayMapping_then_crossing_on_trigger_marker', () => {
+  const settings = fastSettings({ position: 0.4 });
+  const capture = logic.captureSetup(settings);
+  capture.triggerShift = 0.3;
+
+  const { xGain, xShift } = logic.displayMapping(capture, settings, 0);
+
+  const crossingFraction = (0.4 * logic.SAMPLES + 0.3) / logic.SAMPLES;
+  assert.ok(Math.abs(crossingFraction * xGain + xShift - 0.4) < 1e-9);
+});
+
+test('test_given_whole_index_when_interpolatedSample_then_sample_itself', () => {
+  const slot = sineSlot(2500.3, 8);
+
+  assert.ok(Math.abs(logic.interpolatedSample(slot.samples, 0, 2503) - slot.samples[2503]) < 1e-9);
+});
+
+test('test_given_sine_at_4_samples_per_period_when_interpolatedSample_then_true_value_between_samples', () => {
+  const slot = sineSlot(2500, 4);
+
+  const value = logic.interpolatedSample(slot.samples, 0, 2500.5);
+
+  assert.ok(Math.abs(value - (25 + 100 * Math.sin(Math.PI / 4))) < 2);
+});
+
+test('test_given_index_before_first_when_interpolatedSample_then_only_valid_samples_used', () => {
+  const slot = sineSlot(2500, 8);
+  slot.samples.fill(-128, 0, 100);
+
+  const value = logic.interpolatedSample(slot.samples, 100, 100);
+
+  assert.ok(Math.abs(value - slot.samples[100]) < 1e-9);
+});
+
+test('test_given_rising_crossing_between_samples_when_triggerShift_then_fraction_found', () => {
+  const settings = fastSettings({ position: 0.5, levelDiv: 0 });
+
+  const shift = logic.triggerShift(settings, [sineSlot(2500.3, 8), logic.createFrameSlot()]);
+
+  assert.ok(Math.abs(shift - 0.3) < 0.05);
+});
+
+test('test_given_falling_trigger_when_triggerShift_then_falling_crossing_found', () => {
+  const settings = fastSettings({ position: 0.5, levelDiv: 0, fall: true });
+
+  const shift = logic.triggerShift(settings, [sineSlot(2496.3, 8), logic.createFrameSlot()]);
+
+  assert.ok(Math.abs(shift - 0.3) < 0.05);
+});
+
+test('test_given_no_crossing_near_trigger_when_triggerShift_then_zero', () => {
+  const settings = fastSettings({ position: 0.5, levelDiv: 0 });
+  const slot = sineSlot(0, 8, 0, 0);
+
+  assert.equal(logic.triggerShift(settings, [slot, logic.createFrameSlot()]), 0);
+});
+
+test('test_given_sampled_time_base_when_triggerShift_then_zero', () => {
+  const settings = settingsWith({ position: 0.5, levelDiv: 0 });
+
+  assert.equal(logic.triggerShift(settings, [sineSlot(2500.3, 8), logic.createFrameSlot()]), 0);
+});
+
+test('test_given_external_trigger_when_triggerShift_then_zero', () => {
+  const settings = fastSettings({ position: 0.5, levelDiv: 0, source: logic.EXT });
+
+  assert.equal(logic.triggerShift(settings, [sineSlot(2500.3, 8), logic.createFrameSlot()]), 0);
+});
+
+// ---- fidelity
+
+test('test_given_10_samples_per_period_when_fidelityLevel_then_none', () => {
+  assert.equal(logic.fidelityLevel(100e6, 10e6), null);
+});
+
+test('test_given_unknown_frequency_when_fidelityLevel_then_none', () => {
+  assert.equal(logic.fidelityLevel(100e6, 0), null);
+});
+
+test('test_given_4_samples_per_period_when_fidelityLevel_then_fair', () => {
+  assert.equal(logic.fidelityLevel(100e6, 25e6), logic.FIDELITY_FAIR);
+});
+
+test('test_given_just_under_10_samples_per_period_when_fidelityLevel_then_fair', () => {
+  assert.equal(logic.fidelityLevel(99e6, 10e6), logic.FIDELITY_FAIR);
+});
+
+test('test_given_2_5_samples_per_period_when_fidelityLevel_then_poor', () => {
+  assert.equal(logic.fidelityLevel(25e3, 10e3), logic.FIDELITY_POOR);
+});
+
+test('test_given_under_2_5_samples_per_period_when_fidelityLevel_then_unreliable', () => {
+  assert.equal(logic.fidelityLevel(5e3, 3e3), logic.FIDELITY_UNRELIABLE);
 });

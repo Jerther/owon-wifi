@@ -2,11 +2,11 @@ import {
   ADC_RANGE, CH1, EXT, GND, MAX_FFT_SIZE, MODE_STOPPED, SAMPLES, SAMPLING_RATES, SWEEP_AUTO, VOLT_RANGES,
   autosetChannel, buildAllWrites, buildCsv, buildForceTriggerWrites, buildChannelWrites, buildSamplingWrites,
   buildTriggerWrites, captureSetup, channelMask, clip, computeSpectrum, createFft, createFrameSlot, displayMapping,
-  displayedTriggerPosition, encodeMode, encodeWrites, fftSizeFor, forceGround, formatSi, frameCount, frameMinMax,
-  fullScaleVolts, hannWindow, isSingleCapture, isSingleFilling, levelDivAtMidpoint, levelDivAtScreen, levelDivForRange, measure,
+  displayedTriggerPosition, encodeMode, encodeWrites, fftSizeFor, fidelityLevel, forceGround, formatSi, frameCount,
+  frameMinMax, frequencyHz, fullScaleVolts, hannWindow, interpolatedSample, isSingleCapture, isSingleFilling, levelDivAtMidpoint, levelDivAtScreen, levelDivForRange, measure,
   offsetAtScreen, parseFlash, parseFrameInto, positionAtScreen,
   rateIndexForPeriod, readSequence, restoreSettings, runModeFor, sampleScale, sampleTimeSeconds, samplingFor,
-  screenToVolts, timeRangeSeconds, voltsPerDivision,
+  screenToVolts, timeRangeSeconds, triggerShift, voltsPerDivision,
 } from '/scope_logic.js';
 
 const STORAGE_KEY = 'owon-vds1022-v1';
@@ -23,6 +23,7 @@ const AUTOSET_SETTLE_MS = 300;
 const AUTOSET_MAX_TRIES = 10;
 const AUTOSET_RATE = 25e3;
 const CURSOR_GRAB_PX = 24;
+const MAX_SAMPLES_PER_PIXEL_INTERPOLATED = 0.5;
 const FFT_SPAN_DB = 100;
 const MIN_FFT_SIZE = 16;
 const ALL_GROUPS = ['sampling', 'channel0', 'channel1', 'trigger'];
@@ -646,6 +647,7 @@ function consumeLatest() {
       forceGround(slot, channel);
     }
   }
+  app.capture.triggerShift = triggerShift(settings, app.slots);
   if (app.autoset) {
     autosetStep();
   } else if (singleArmed() && isSingleCapture(message)) {
@@ -770,11 +772,34 @@ function traceColumns(context, slot, mapping, y, width) {
   }
 }
 
+function traceInterpolated(context, slot, mapping, y, width) {
+  const step = (width * mapping.xGain) / SAMPLES;
+  const left = leftEdgeSample(mapping);
+  const firstX = Math.max(0, Math.ceil((slot.first + 0.5 - left) * step));
+  const lastX = Math.min(width, Math.floor((SAMPLES - 0.5 - left) * step));
+  for (let x = firstX; x <= lastX; x++) {
+    const value = y(interpolatedSample(slot.samples, slot.first, left + x / step - 0.5));
+    if (x === firstX) {
+      context.moveTo(x, value);
+    } else {
+      context.lineTo(x, value);
+    }
+  }
+}
+
+// sin(x)/x only rebuilds the signal at 100 MS/s, where the 25 MHz input bandwidth keeps it under Nyquist.
+function isSparseFullRate(mapping, width) {
+  const samplesPerPixel = SAMPLES / (width * mapping.xGain);
+  return samplesPerPixel < MAX_SAMPLES_PER_PIXEL_INTERPOLATED && samplingFor(app.capture.rateIndex).prescaler === 1;
+}
+
 function drawTrace(slot, index, width, height) {
   const mapping = displayMapping(app.capture, app.store.settings, index);
   const y = (sample) => height * (0.5 - (sample / ADC_RANGE) * mapping.yGain - mapping.yShift);
   traceContext.beginPath();
-  if (SAMPLES / (width * mapping.xGain) < 2) {
+  if (isSparseFullRate(mapping, width)) {
+    traceInterpolated(traceContext, slot, mapping, y, width);
+  } else if (SAMPLES / (width * mapping.xGain) < 2) {
     tracePolyline(traceContext, slot, mapping, y, width);
   } else {
     traceColumns(traceContext, slot, mapping, y, width);
@@ -1040,6 +1065,7 @@ function buildMeasureTable() {
   });
 }
 
+// Returns the signal frequency, from the scope's counter or from the samples, 0 if unknown.
 function showMeasures(index) {
   const slot = app.slots[index];
   const on = slot.present && app.store.settings.channels[index].on;
@@ -1050,6 +1076,20 @@ function showMeasures(index) {
   values.forEach((text, row) => {
     app.measureCells[row * 2 + index].textContent = text;
   });
+  return result ? Math.max(result.frequency, frequencyHz(slot.timeSum, slot.periodNum)) : 0;
+}
+
+function updateFidelity(frequency) {
+  const element = $('fidelity');
+  const rate = app.capture ? samplingFor(app.capture.rateIndex).rate : 0;
+  const level = fidelityLevel(rate, frequency);
+  const ratio = Number((rate / frequency).toPrecision(2));
+  element.hidden = level === null;
+  element.dataset.level = level || '';
+  element.textContent = level ? `Trace ${level}: ${ratio} samples/period` : '';
+  element.title = level
+    ? `The scope samples only ${ratio} times per signal period. About 10 gives a faithful trace; below 2.5 it may be aliased.`
+    : '';
 }
 
 function updateScaleStrip() {
@@ -1060,7 +1100,8 @@ function updateScaleStrip() {
     $(`scale-${index}`).textContent = channel.on ? `CH${index + 1} ${rangeLabel(channel.rangeIndex, channel.probe)} ${coupling}` : '';
   });
   $('scale-time').textContent = `${formatSi(timeRangeSeconds(settings.rateIndex) / 10, 's')}/div`;
-  $('sample-info').textContent = `${formatSi(sampling.rate, 'S/s')}${sampling.roll ? ' roll' : ''}${settings.peak ? ' peak' : ''}`;
+  const mode = `${sampling.roll ? ' roll' : ''}${sampling.interpolated ? ' sin(x)/x' : ''}${settings.peak ? ' peak' : ''}`;
+  $('sample-info').textContent = `${formatSi(sampling.rate, 'S/s')}${mode}`;
 }
 
 function cursorText() {
@@ -1076,7 +1117,7 @@ function cursorText() {
   if (axes.horizontal) {
     const sampling = samplingFor(settings.rateIndex);
     const position = displayedTriggerPosition(settings);
-    const [a, b] = ui.tCursors.map((fraction) => sampleTimeSeconds(fraction * SAMPLES, sampling.rate, position));
+    const [a, b] = ui.tCursors.map((fraction) => sampleTimeSeconds(fraction * SAMPLES, sampling.displayRate, position));
     const delta = Math.abs(b - a);
     parts.push(`dT ${formatSi(delta, 's')}${delta > 0 ? ` (${formatSi(1 / delta, 'Hz')})` : ''}`);
   }
@@ -1100,8 +1141,7 @@ function fftText() {
 function updateReadouts() {
   const view = app.store.ui.view;
   refreshState();
-  showMeasures(0);
-  showMeasures(1);
+  updateFidelity(Math.max(showMeasures(0), showMeasures(1)));
   updateScaleStrip();
   $('info').textContent = infoText(view);
 }

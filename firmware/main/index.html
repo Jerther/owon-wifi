@@ -42,6 +42,9 @@
   #scale { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 2px; font-variant-numeric: tabular-nums; }
   .c0 { color: var(--ch0); }
   .c1 { color: var(--ch1); }
+  #fidelity { margin-left: auto; color: var(--muted); cursor: help; }
+  #fidelity[data-level="poor"] { color: var(--warn); }
+  #fidelity[data-level="unreliable"] { color: var(--bad); }
   #info { min-height: 1.3em; padding: 0 2px 6px; }
 
   .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 4px 0 10px; }
@@ -92,7 +95,7 @@
     <div class="handle" data-handle="offset" data-channel="1" hidden></div>
     <div id="drag-readout" hidden></div>
   </div>
-  <div id="scale"><span id="scale-0" class="c0"></span><span id="scale-1" class="c1"></span><span id="scale-time"></span></div>
+  <div id="scale"><span id="scale-0" class="c0"></span><span id="scale-1" class="c1"></span><span id="scale-time"></span><span id="fidelity" hidden></span></div>
   <div id="info"></div>
 
   <div class="row">
