@@ -27,6 +27,7 @@ typedef struct {
     uint32_t fetched;
     uint32_t wait_ms;
     int64_t last_command_us;
+    bool force_pending;
 } session_t;
 
 static uint8_t s_frames[VDS1022_FRAMES_SIZE];
@@ -80,13 +81,17 @@ static esp_err_t record(session_t *session, esp_err_t result, const char *what) 
     return err;
 }
 
-static esp_err_t run_commands(const control_message_t *message) {
+static esp_err_t run_commands(session_t *session, const control_message_t *message) {
     esp_err_t err = ESP_OK;
     size_t offset = 1;
     while (err == ESP_OK && offset < message->length) {
         control_command_t command;
         control_next_command(message, &offset, &command);
         err = vds1022_send_register(command.address, command.size, command.value);
+        if (err == ESP_OK && vds1022_is_force_trigger(command.address)) {
+            ESP_LOGI(TAG, "Force trigger");
+            session->force_pending = true;
+        }
     }
     return err;
 }
@@ -94,7 +99,7 @@ static esp_err_t run_commands(const control_message_t *message) {
 static esp_err_t handle_message(session_t *session, const control_message_t *message) {
     esp_err_t err = ESP_OK;
     if (message->data[0] == CONTROL_COMMANDS) {
-        err = run_commands(message);
+        err = run_commands(session, message);
         session->last_command_us = esp_timer_get_time();
     } else {
         control_read_acquisition(message, &session->acquisition);
@@ -121,6 +126,7 @@ static esp_err_t fetch_once(session_t *session) {
         const bool single_capture = session->acquisition.mode == ACQUISITION_SINGLE;
         stream_publish(s_frames, count * VDS1022_FRAME_SIZE, single_capture);
         session->fetched++;
+        session->force_pending = false;
         if (single_capture) {
             session->acquisition.mode = ACQUISITION_STOPPED;
         }
@@ -131,7 +137,10 @@ static esp_err_t fetch_once(session_t *session) {
 static esp_err_t acquire_step(session_t *session) {
     bool ready = true;
     esp_err_t err = ESP_OK;
-    if (waits_for_trigger(&session->acquisition)) {
+    // A forced capture finishes without the trigger flag, which would keep it waiting.
+    if (session->force_pending) {
+        err = vds1022_data_finished(&ready);
+    } else if (waits_for_trigger(&session->acquisition)) {
         err = vds1022_trigger_ready(&ready);
     }
     if (err == ESP_OK && ready) {
@@ -147,6 +156,7 @@ static esp_err_t idle_step(session_t *session) {
     esp_err_t err = ESP_OK;
     const int64_t now_us = esp_timer_get_time();
     session->wait_ms = IDLE_WAIT_MS;
+    session->force_pending = false;
     if (now_us - session->last_command_us >= KEEPALIVE_PERIOD_US) {
         err = vds1022_keepalive();
         session->last_command_us = now_us;

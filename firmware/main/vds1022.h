@@ -42,6 +42,11 @@ esp_err_t vds1022_keepalive(void);
 /** True when the acquisition is finished and the trigger fired. */
 esp_err_t vds1022_trigger_ready(bool *ready);
 
+/** True when the acquisition is finished, with or without a real trigger. */
+esp_err_t vds1022_data_finished(bool *finished);
+
+bool vds1022_is_force_trigger(uint32_t address);
+
 /** The raw flash read at the start of the session, or 0 when no session is prepared. */
 size_t vds1022_prepared_flash(const uint8_t **data);
 

@@ -126,7 +126,7 @@ This repository holds `PROJECT.md` and `firmware/`. The firmware embeds the FPGA
    - Captive portal: the page pops up by itself when a phone joins the board's network (confirmed on the user's phone).
    - **Known limit**: firmware upload and Wi-Fi settings have no login, so anyone on the home network or on the board's network can use them.
    - The partition table changed for OTA: a board still on an older table needs one serial flash (`esptool write_flash @flash_args` from `build/`).
-4. Web app — first version in [firmware/main/](firmware/main/) (`index.html`, `app.js`, `scope_logic.js`), firmware 0.4.3 on board 1, 0.5.0 built and not uploaded, reachable at `http://owon-scope.local/`. Since 0.5.0, the top bit of the frame sequence number marks a single capture. Logic tests: `node --test firmware/test/*.mjs` (95 pass). Runs live on the real scope at 28 refreshes/s. The user checked a known signal on CH1 with Autoset on 2026-11-06: trace and readings looked right.
+4. Web app — first version in [firmware/main/](firmware/main/) (`index.html`, `app.js`, `scope_logic.js`), firmware 0.5.1 on board 1, reachable at `http://owon-scope.local/`. Since 0.5.0, the top bit of the frame sequence number marks a single capture. Logic tests: `node --test firmware/test/*.mjs` (95 pass). Runs live on the real scope at 28 refreshes/s. The user checked a known signal on CH1 with Autoset on 2026-11-06: trace and readings looked right.
    - Single is a one-shot button that keeps the selected sweep (Auto or Normal; Once is no longer a sweep choice, and an old saved Once becomes Auto); Run resumes by the sweep. Arrow handles drag trigger level (right), trigger position (top) and channel position (left), rather than whole lines, to avoid accidental grabs on a phone.
    - Has: run/stop, single, force, autoset; per-channel on/off, range, probe, coupling, position; timebase, roll, peak; edge trigger; measurements; cursors; FFT; XY; CSV export; stats.
    - AC and DC confirmed right by the user. GND: the hardware has no ground relay (mode 2 acts like AC, and the vendor app also forces ground in software), so the page draws a flat trace at the ground marker; the input stays connected.
@@ -136,7 +136,6 @@ This repository holds `PROJECT.md` and `firmware/`. The firmware embeds the FPGA
 
 ## What's left
 
-1. Upload 0.5.0 (bench-scope controls, built and checked against a fake board only) and try it on the real scope.
 2. Finish checks on the real scope, on a phone: a captured single, drag arrows, Force, probe scaling, trigger level and position, roll mode, frequency on the non-source channel, voltage and frequency accuracy, the firmware's triggered-mode wait and stopped-mode keepalive, and single in roll mode.
 3. Fast timebases: the page stops at 5 us/div (100 MS/s, 5000 samples) while the scope is rated to 5 ns/div; a zoom on the capture could reach them.
 4. Remaining features from the Java app: pass/fail, protocol decoding, math channels, recording, pulse/slope/video trigger.

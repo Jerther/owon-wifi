@@ -58,6 +58,7 @@ static const scope_register_t REG_GET_MACHINE = {0x4001, 1};
 static const scope_register_t REG_GET_DATA = {0x1000, 2};
 static const scope_register_t REG_TRIGGERED = {0x01, 1};
 static const scope_register_t REG_DATA_FINISHED = {0x7a, 1};
+static const scope_register_t REG_FORCE_TRIGGER = {0x0c, 1};
 static const scope_register_t REG_MULTI = {0x06, 2};
 static const scope_register_t REG_PEAK_MODE = {0x09, 1};
 static const scope_register_t REG_ROLL_MODE = {0x0a, 1};
@@ -417,6 +418,14 @@ esp_err_t vds1022_trigger_ready(bool *ready) {
         err = read_flag(REG_TRIGGERED, ready);
     }
     return err;
+}
+
+esp_err_t vds1022_data_finished(bool *finished) {
+    return read_flag(REG_DATA_FINISHED, finished);
+}
+
+bool vds1022_is_force_trigger(uint32_t address) {
+    return address == REG_FORCE_TRIGGER.address;
 }
 
 size_t vds1022_prepared_flash(const uint8_t **data) {
