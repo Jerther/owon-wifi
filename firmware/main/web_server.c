@@ -22,42 +22,25 @@
 #define MAX_WIFI_BODY 256
 #define PORTAL_URL "http://192.168.4.1/"
 
-extern const uint8_t index_html_start[] asm("_binary_index_html_start");
-extern const uint8_t index_html_end[] asm("_binary_index_html_end");
-extern const uint8_t settings_html_start[] asm("_binary_settings_html_start");
-extern const uint8_t settings_html_end[] asm("_binary_settings_html_end");
-
-extern const uint8_t app_js_start[] asm("_binary_app_js_start");
-extern const uint8_t app_js_end[] asm("_binary_app_js_end");
-extern const uint8_t scope_logic_js_start[] asm("_binary_scope_logic_js_start");
-extern const uint8_t scope_logic_js_end[] asm("_binary_scope_logic_js_end");
+extern const uint8_t index_html_gz_start[] asm("_binary_index_html_gz_start");
+extern const uint8_t index_html_gz_end[] asm("_binary_index_html_gz_end");
+extern const uint8_t settings_html_gz_start[] asm("_binary_settings_html_gz_start");
+extern const uint8_t settings_html_gz_end[] asm("_binary_settings_html_gz_end");
 
 static const char *TAG = "web";
 
 static esp_err_t send_page(httpd_req_t *request, const uint8_t *start, const uint8_t *end) {
     httpd_resp_set_type(request, "text/html");
+    httpd_resp_set_hdr(request, "Content-Encoding", "gzip");
     return httpd_resp_send(request, (const char *)start, end - start);
 }
 
 static esp_err_t serve_index(httpd_req_t *request) {
-    return send_page(request, index_html_start, index_html_end);
+    return send_page(request, index_html_gz_start, index_html_gz_end);
 }
 
 static esp_err_t serve_settings(httpd_req_t *request) {
-    return send_page(request, settings_html_start, settings_html_end);
-}
-
-static esp_err_t send_script(httpd_req_t *request, const uint8_t *start, const uint8_t *end) {
-    httpd_resp_set_type(request, "text/javascript");
-    return httpd_resp_send(request, (const char *)start, end - start);
-}
-
-static esp_err_t serve_app_js(httpd_req_t *request) {
-    return send_script(request, app_js_start, app_js_end);
-}
-
-static esp_err_t serve_scope_logic_js(httpd_req_t *request) {
-    return send_script(request, scope_logic_js_start, scope_logic_js_end);
+    return send_page(request, settings_html_gz_start, settings_html_gz_end);
 }
 
 static esp_err_t serve_flash(httpd_req_t *request) {
@@ -211,8 +194,6 @@ static esp_err_t redirect_to_portal(httpd_req_t *request, httpd_err_code_t code)
 static esp_err_t register_routes(httpd_handle_t server) {
     const httpd_uri_t routes[] = {
         {.uri = "/", .method = HTTP_GET, .handler = serve_index},
-        {.uri = "/app.js", .method = HTTP_GET, .handler = serve_app_js},
-        {.uri = "/scope_logic.js", .method = HTTP_GET, .handler = serve_scope_logic_js},
         {.uri = "/flash", .method = HTTP_GET, .handler = serve_flash},
         {.uri = "/settings", .method = HTTP_GET, .handler = serve_settings},
         {.uri = "/status", .method = HTTP_GET, .handler = serve_status},

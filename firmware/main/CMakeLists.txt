@@ -12,8 +12,17 @@ idf_component_register(
         "${FPGA_DIR}/VDS1022_FPGAV3_gaoyun.bin"
         "${FPGA_DIR}/VDS1022_FPGAV4_gaoyun.bin"
         "${FPGA_DIR}/VDS1022_FPGAV5_gaoyun.bin"
-        "index.html"
-        "settings.html"
-        "app.js"
-        "scope_logic.js"
 )
+
+set(WEB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../web")
+set(WEB_OUT "${CMAKE_CURRENT_BINARY_DIR}/web")
+file(GLOB_RECURSE WEB_SOURCES CONFIGURE_DEPENDS "${WEB_DIR}/*")
+add_custom_command(
+    OUTPUT "${WEB_OUT}/index.html.gz" "${WEB_OUT}/settings.html.gz"
+    COMMAND node "${WEB_DIR}/build.mjs" "${WEB_OUT}"
+    DEPENDS ${WEB_SOURCES}
+    VERBATIM)
+add_custom_target(web_bundle DEPENDS "${WEB_OUT}/index.html.gz" "${WEB_OUT}/settings.html.gz")
+add_dependencies(${COMPONENT_LIB} web_bundle)
+target_add_binary_data(${COMPONENT_LIB} "${WEB_OUT}/index.html.gz" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "${WEB_OUT}/settings.html.gz" BINARY)

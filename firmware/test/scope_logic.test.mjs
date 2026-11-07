@@ -2,7 +2,7 @@
 // (calibration tables are the ones of the author's scope).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as logic from '../main/scope_logic.js';
+import * as logic from '../web/scope_logic.js';
 
 const CALIBRATION = {
   gain: [[1271, 1106, 978, 809, 682, 553, 985, 854, 729, 558], [1257, 1101, 975, 808, 680, 553, 982, 854, 727, 558]],
