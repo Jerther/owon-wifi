@@ -1,4 +1,6 @@
-.measure-table { width: 100%; margin-bottom: 10px; border-collapse: separate; border-spacing: 0; padding: 4px 12px; }
+.measure-table { width: 100%; margin-bottom: 10px; border-collapse: separate; border-spacing: 0; padding: 4px 12px; table-layout: fixed; }
+/* Fixed widths so changing values never move the columns. */
+.measure-table thead th:first-child { width: 34%; }
 .measure-table th { font-weight: 400; text-align: left; }
 .measure-table thead th { font-weight: 600; text-align: right; }
 .measure-table td { text-align: right; }

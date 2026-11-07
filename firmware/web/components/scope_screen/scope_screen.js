@@ -4,7 +4,8 @@ import {
 } from '../../scope_logic.js';
 import { Component, onMounted, onWillUnmount, toRaw, useRef, useState } from '../../core/owl.js';
 import { cursorAxes, getPath } from '../../core/store.js';
-import { GridPainter, TracePainter } from './screen_painters.js';
+import { GridPainter } from './grid_painter.js';
+import { TracePainter } from './screen_painters.js';
 import { TimebaseGestures } from './timebase_gestures.js';
 
 // The scope screen: grid and trace canvases, drag handles, V/T cursors and time base gestures.
@@ -83,8 +84,8 @@ export class ScopeScreen extends Component {
   onFrame(now) {
     const session = this.env.session;
     const tookFrame = session.takeFrame();
-    this.refreshGrid();
-    if (tookFrame || session.dirty) {
+    const gridChanged = this.refreshGrid();
+    if (tookFrame || gridChanged || session.dirty) {
       session.dirty = false;
       this.tracePainter.draw(this.guideChannel);
     }
@@ -92,14 +93,17 @@ export class ScopeScreen extends Component {
     this.frameRequest = requestAnimationFrame((time) => this.onFrame(time));
   }
 
+  // True when the grid was redrawn, so the axis labels follow its brightness.
   refreshGrid() {
     const brightness = this.env.store.display.gridBrightness;
     const canvas = this.gridRef.el;
     const key = `${canvas.width}x${canvas.height}@${brightness}`;
-    if (key !== this.gridKey) {
+    const changed = key !== this.gridKey;
+    if (changed) {
       this.gridKey = key;
       this.gridPainter.draw(brightness);
     }
+    return changed;
   }
 
   // Channel whose offset is being dragged, or null; read raw so the loop does not subscribe to the state.
