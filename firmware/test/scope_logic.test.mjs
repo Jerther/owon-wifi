@@ -496,12 +496,56 @@ test('test_given_no_valid_sample_when_measure_then_zeros', () => {
   assert.equal(logic.measure(slot, { probe: 1, rangeIndex: 5, offset: 0 }).vpp, 0);
 });
 
-test('test_given_slot_with_frequency_meter_when_measure_then_frequency_from_time_sum', () => {
-  const slot = slotWith([0, 1]);
-  slot.timeSum = 100000;
-  slot.periodNum = 100;
+function squareWave(period, count, low = -50, high = 50) {
+  return Array.from({ length: count }, (_, i) => (i % period < period / 2 ? high : low));
+}
 
-  assert.equal(logic.measure(slot, { probe: 1, rangeIndex: 5, offset: 0 }).frequency, 100000);
+test('test_given_square_wave_when_measure_then_frequency_from_waveform', () => {
+  const slot = slotWith(squareWave(100, 5000));
+
+  const result = logic.measure(slot, { probe: 1, rangeIndex: 5, offset: 0 }, 100000);
+
+  assert.ok(Math.abs(result.frequency - 1000) < 1e-6);
+});
+
+test('test_given_sine_between_samples_when_waveformFrequency_then_interpolated', () => {
+  const samples = Int8Array.from({ length: 5000 }, (_, i) => Math.round(100 * Math.sin((2 * Math.PI * i) / 333.3)));
+
+  const frequency = logic.waveformFrequency(samples, 0, -100, 100, 1e6);
+
+  assert.ok(Math.abs(frequency - 1e6 / 333.3) < 1);
+});
+
+test('test_given_one_whole_rising_period_when_waveformFrequency_then_from_falling_edges', () => {
+  const samples = Int8Array.from({ length: 5000 }, (_, i) => (i % 2500 < 1250 ? 50 : -50));
+
+  const frequency = logic.waveformFrequency(samples, 0, -50, 50, 2.5e6);
+
+  assert.ok(Math.abs(frequency - 1000) < 1);
+});
+
+test('test_given_less_than_one_period_when_waveformFrequency_then_zero', () => {
+  const samples = Int8Array.from(squareWave(8000, 5000));
+  assert.equal(logic.waveformFrequency(samples, 0, -50, 50, 1e6), 0);
+});
+
+test('test_given_amplitude_below_minimum_when_waveformFrequency_then_zero', () => {
+  const samples = Int8Array.from(squareWave(100, 5000, -4, 4));
+  assert.equal(logic.waveformFrequency(samples, 0, -4, 4, 1e6), 0);
+});
+
+test('test_given_noise_around_mid_level_when_waveformFrequency_then_counted_once_per_period', () => {
+  const samples = Int8Array.from(squareWave(100, 5000).map((value, i) => (i % 100 === 50 ? 2 : value)));
+  samples[51] = -2;
+
+  const frequency = logic.waveformFrequency(samples, 0, -50, 50, 100000);
+
+  assert.ok(Math.abs(frequency - 1000) < 1);
+});
+
+test('test_given_samples_before_first_when_waveformFrequency_then_ignored', () => {
+  const samples = Int8Array.from(squareWave(100, 5000));
+  assert.equal(logic.waveformFrequency(samples, 4900, -50, 50, 100000), 0);
 });
 
 // ---- formatting

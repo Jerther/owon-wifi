@@ -1036,7 +1036,7 @@ function buildMeasureTable() {
 function showMeasures(index) {
   const slot = app.slots[index];
   const on = slot.present && app.store.settings.channels[index].on;
-  const result = on ? measure(slot, app.capture.channels[index]) : null;
+  const result = on ? measure(slot, app.capture.channels[index], samplingFor(app.capture.rateIndex).rate) : null;
   const values = result
     ? [result.frequency > 0 ? formatSi(result.frequency, 'Hz') : '-', ...[result.vpp, result.vmax, result.vmin, result.vavg, result.vrms].map((v) => formatSi(v, 'V'))]
     : ['-', '-', '-', '-', '-', '-'];

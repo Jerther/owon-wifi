@@ -458,8 +458,50 @@ export function frequencyHz(timeSum, periodNum) {
   return timeSum ? (periodNum / timeSum) * BASE_CLOCK : 0;
 }
 
+const FREQ_MIN_AMPLITUDE = 10;
+const FREQ_HYSTERESIS = 0.1;
+
+// Like a bench scope: crossings of the 50 % level, with hysteresis, over whole periods.
+// Falling edges count too: a trigger at 50 % can leave a single whole rising period on screen.
+export function waveformFrequency(samples, first, low, high, rate) {
+  let frequency = 0;
+  if (high - low >= FREQ_MIN_AMPLITUDE) {
+    const mid = (low + high) / 2;
+    const band = (high - low) * FREQ_HYSTERESIS;
+    const rising = edgeCrossings(samples, first, mid, band, 1);
+    const falling = edgeCrossings(samples, first, mid, band, -1);
+    const best = rising.count >= falling.count ? rising : falling;
+    const hasWholePeriod = best.count >= 2;
+    frequency = hasWholePeriod ? ((best.count - 1) * rate) / (best.last - best.first) : 0;
+  }
+  return frequency;
+}
+
+// Crossings of mid in one direction (1 rising, -1 falling), interpolated between samples.
+function edgeCrossings(samples, first, mid, band, direction) {
+  const edges = { count: 0, first: 0, last: 0 };
+  const level = mid * direction;
+  let armed = false;
+  for (let i = first + 1; i < SAMPLES; i++) {
+    const sample = clip(samples[i], ADC_MIN, ADC_MAX) * direction;
+    if (sample < level - band) {
+      armed = true;
+    } else if (armed && sample >= level) {
+      const previous = clip(samples[i - 1], ADC_MIN, ADC_MAX) * direction;
+      const crossing = i - (sample - level) / (sample - previous);
+      if (edges.count === 0) {
+        edges.first = crossing;
+      }
+      edges.last = crossing;
+      edges.count++;
+      armed = false;
+    }
+  }
+  return edges;
+}
+
 // Python Frame.min/max/avg/rms, computed in volts from clipped samples.
-export function measure(slot, channel) {
+export function measure(slot, channel, rate) {
   const { scale, shift } = sampleScale(channel);
   const count = SAMPLES - slot.first;
   let low = ADC_MAX;
@@ -474,13 +516,14 @@ export function measure(slot, channel) {
     sum += sample;
     squares += (sample + zeroShift) * (sample + zeroShift);
   }
-  const result = { vmin: 0, vmax: 0, vpp: 0, vavg: 0, vrms: 0, frequency: frequencyHz(slot.timeSum, slot.periodNum) };
+  const result = { vmin: 0, vmax: 0, vpp: 0, vavg: 0, vrms: 0, frequency: 0 };
   if (count > 0) {
     result.vmin = low * scale + shift;
     result.vmax = high * scale + shift;
     result.vpp = result.vmax - result.vmin;
     result.vavg = (sum / count) * scale + shift;
     result.vrms = Math.sqrt(squares / count) * scale;
+    result.frequency = waveformFrequency(slot.samples, slot.first, low, high, rate);
   }
   return result;
 }

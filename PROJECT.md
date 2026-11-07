@@ -136,7 +136,7 @@ This repository holds `PROJECT.md` and `firmware/`. The firmware embeds the FPGA
 
 ## What's left
 
-2. Finish checks on the real scope, on a phone: a captured single, drag arrows, Force, probe scaling, trigger level and position, roll mode, frequency on the non-source channel, voltage and frequency accuracy, the firmware's triggered-mode wait and stopped-mode keepalive, and single in roll mode.
+2. Finish checks on the real scope, on a phone: a captured single, drag arrows, Force, trigger level and position, roll mode, frequency on the non-source channel, the firmware's triggered-mode wait and stopped-mode keepalive, and single in roll mode.
 3. Fast timebases: the page stops at 5 us/div (100 MS/s, 5000 samples) while the scope is rated to 5 ns/div; a zoom on the capture could reach them.
 4. Remaining features from the Java app: pass/fail, protocol decoding, math channels, recording, pulse/slope/video trigger.
 5. Login on firmware upload and Wi-Fi settings.
