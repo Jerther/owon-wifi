@@ -14,8 +14,12 @@
 #define SENDER_PRIORITY 5
 #define HEADER_SIZE sizeof(uint32_t)
 #define FLAG_BITS (STREAM_SINGLE_CAPTURE | STREAM_SINGLE_FILLING)
-#define MAX_ECHO_SIZE 32
+#define MAX_TEXT_SIZE 1024
 #define MAX_BINARY_SIZE CONTROL_MAX_MESSAGE
+#define MAX_INCOMING_SIZE MAX_TEXT_SIZE
+#define NO_SOCKET -1
+#define STATE_QUERY "state?"
+#define EMPTY_STATE "{\"state\":null}"
 
 static const char *TAG = "stream";
 
@@ -31,6 +35,10 @@ static uint8_t *s_latest;
 static uint8_t *s_outgoing;
 static uint32_t s_sequence;
 static volatile uint32_t s_sent_count;
+// Only the server task touches these: the incoming message, and the browsers' shared state as they last sent it.
+static uint8_t s_incoming[MAX_INCOMING_SIZE];
+static uint8_t s_state[MAX_TEXT_SIZE];
+static size_t s_state_size;
 
 static esp_err_t send_echo(httpd_req_t *request, httpd_ws_frame_t *frame) {
     xSemaphoreTake(s_send_lock, portMAX_DELAY);
@@ -40,35 +48,7 @@ static esp_err_t send_echo(httpd_req_t *request, httpd_ws_frame_t *frame) {
 }
 
 static size_t max_payload(httpd_ws_type_t type) {
-    return type == HTTPD_WS_TYPE_TEXT ? MAX_ECHO_SIZE : MAX_BINARY_SIZE;
-}
-
-static esp_err_t receive_message(httpd_req_t *request) {
-    uint8_t payload[MAX_BINARY_SIZE];
-    httpd_ws_frame_t frame = {.payload = payload};
-    esp_err_t err = httpd_ws_recv_frame(request, &frame, 0);
-    if (err == ESP_OK && frame.len > max_payload(frame.type)) {
-        err = ESP_ERR_INVALID_SIZE;
-    }
-    if (err == ESP_OK) {
-        err = httpd_ws_recv_frame(request, &frame, frame.len);
-    }
-    if (err == ESP_OK && frame.type == HTTPD_WS_TYPE_TEXT) {
-        err = send_echo(request, &frame);
-    } else if (err == ESP_OK && frame.type == HTTPD_WS_TYPE_BINARY) {
-        control_submit(payload, frame.len);
-    }
-    return err;
-}
-
-static esp_err_t handle_socket(httpd_req_t *request) {
-    esp_err_t err = ESP_OK;
-    if (request->method == HTTP_GET) {
-        ESP_LOGI(TAG, "Client connected on socket %d", httpd_req_to_sockfd(request));
-    } else {
-        err = receive_message(request);
-    }
-    return err;
+    return type == HTTPD_WS_TYPE_TEXT ? MAX_TEXT_SIZE : MAX_BINARY_SIZE;
 }
 
 static void send_to_client(int fd, httpd_ws_frame_t *frame) {
@@ -83,16 +63,85 @@ static void send_to_client(int fd, httpd_ws_frame_t *frame) {
     }
 }
 
-static void send_to_clients(httpd_ws_frame_t *frame) {
+static void send_to_other_clients(int sender_fd, httpd_ws_frame_t *frame) {
     int fds[MAX_SOCKETS];
     size_t count = MAX_SOCKETS;
     if (httpd_get_client_list(s_server, &count, fds) == ESP_OK) {
         for (size_t i = 0; i < count; i++) {
-            if (httpd_ws_get_fd_info(s_server, fds[i]) == HTTPD_WS_CLIENT_WEBSOCKET) {
+            const bool is_websocket = httpd_ws_get_fd_info(s_server, fds[i]) == HTTPD_WS_CLIENT_WEBSOCKET;
+            if (is_websocket && fds[i] != sender_fd) {
                 send_to_client(fds[i], frame);
             }
         }
     }
+}
+
+static void send_to_clients(httpd_ws_frame_t *frame) {
+    send_to_other_clients(NO_SOCKET, frame);
+}
+
+static bool is_state(const httpd_ws_frame_t *frame) {
+    return frame->len > 0 && frame->payload[0] == '{';
+}
+
+static bool is_state_query(const httpd_ws_frame_t *frame) {
+    return frame->len == strlen(STATE_QUERY) && memcmp(frame->payload, STATE_QUERY, frame->len) == 0;
+}
+
+static void share_state(httpd_req_t *request, httpd_ws_frame_t *frame) {
+    memcpy(s_state, frame->payload, frame->len);
+    s_state_size = frame->len;
+    send_to_other_clients(httpd_req_to_sockfd(request), frame);
+}
+
+static esp_err_t reply_state(httpd_req_t *request) {
+    httpd_ws_frame_t reply = {.type = HTTPD_WS_TYPE_TEXT, .payload = s_state, .len = s_state_size};
+    if (s_state_size == 0) {
+        reply.payload = (uint8_t *)EMPTY_STATE;
+        reply.len = strlen(EMPTY_STATE);
+    }
+    return send_echo(request, &reply);
+}
+
+// Text is a shared state to relay, a query for it, or a timestamp to echo for the round trip.
+static esp_err_t handle_text(httpd_req_t *request, httpd_ws_frame_t *frame) {
+    esp_err_t err = ESP_OK;
+    if (is_state(frame)) {
+        share_state(request, frame);
+    } else if (is_state_query(frame)) {
+        err = reply_state(request);
+    } else {
+        err = send_echo(request, frame);
+    }
+    return err;
+}
+
+static esp_err_t receive_message(httpd_req_t *request) {
+    uint8_t *payload = s_incoming;
+    httpd_ws_frame_t frame = {.payload = payload};
+    esp_err_t err = httpd_ws_recv_frame(request, &frame, 0);
+    if (err == ESP_OK && frame.len > max_payload(frame.type)) {
+        err = ESP_ERR_INVALID_SIZE;
+    }
+    if (err == ESP_OK) {
+        err = httpd_ws_recv_frame(request, &frame, frame.len);
+    }
+    if (err == ESP_OK && frame.type == HTTPD_WS_TYPE_TEXT) {
+        err = handle_text(request, &frame);
+    } else if (err == ESP_OK && frame.type == HTTPD_WS_TYPE_BINARY) {
+        control_submit(payload, frame.len);
+    }
+    return err;
+}
+
+static esp_err_t handle_socket(httpd_req_t *request) {
+    esp_err_t err = ESP_OK;
+    if (request->method == HTTP_GET) {
+        ESP_LOGI(TAG, "Client connected on socket %d", httpd_req_to_sockfd(request));
+    } else {
+        err = receive_message(request);
+    }
+    return err;
 }
 
 static void sender_task(void *arg) {

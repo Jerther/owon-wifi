@@ -4,7 +4,7 @@ import {
   buildTriggerWrites, captureSetup, channelMask, clip, createFrameSlot, displayedTriggerPosition, encodeMode, encodeWrites,
   fidelityLevel, forceGround, frameCount, frameMinMax, frequencyHz, isSingleCapture, isSingleFilling, levelDivAtMidpoint,
   levelDivForRange, measure, parseFlash, parseFrameInto, rateIndexForPeriod, readSequence, runModeFor, sampleScale,
-  samplingFor, timeRangeSeconds, triggerShift,
+  restoreSettings, samplingFor, timeRangeSeconds, triggerShift,
 } from '../scope_logic.js';
 import { reactive } from './owl.js';
 import { getPath, saveStore, setPath } from './store.js';
@@ -18,6 +18,8 @@ const MIN_TRIGGER_WAIT_MS = 1000;
 const AUTOSET_SETTLE_MS = 300;
 const AUTOSET_MAX_TRIES = 10;
 const AUTOSET_RATE = 25e3;
+const STATE_QUERY = 'state?';
+const ACQUIRE_MODES = ['run', 'stop', 'single'];
 const ALL_GROUPS = ['sampling', 'channel0', 'channel1', 'trigger'];
 export const RUN = 'run';
 export const STOP = 'stop';
@@ -42,6 +44,14 @@ function parseEvent(text) {
     event = null;
   }
   return event;
+}
+
+// Copies in place, so components keep the objects they hold.
+function assignSettings(target, source) {
+  const { channels, trigger, ...rest } = restoreSettings(source);
+  Object.assign(target, rest);
+  Object.assign(target.trigger, trigger);
+  channels.forEach((channel, index) => Object.assign(target.channels[index], channel));
 }
 
 function download(blob, filename) {
@@ -83,6 +93,8 @@ export class ScopeSession {
     this.generation = 0;
     this.pending = new Set();
     this.pushTimer = 0;
+    // Generation whose state query is unanswered, 0 when none.
+    this.awaitingState = 0;
     this.autosetRun = null;
     // Set when the screen needs a redraw; the screen clears it.
     this.dirty = true;
@@ -190,6 +202,7 @@ export class ScopeSession {
     if (this.flash) {
       this.sendWrites(this.writesForGroups(groups));
       this.sendMode();
+      this.shareState();
     }
   }
 
@@ -210,12 +223,34 @@ export class ScopeSession {
     this.sendMode();
   }
 
+  // Every browser connected to the board shows the same settings: the last change wins.
+  shareState() {
+    const { settings } = this.store;
+    this.send(JSON.stringify({ state: { settings, acquire: this.status.acquire } }));
+  }
+
+  adoptState(state) {
+    assignSettings(this.store.settings, state.settings);
+    if (ACQUIRE_MODES.includes(state.acquire) && state.acquire !== this.status.acquire) {
+      this.applyAcquire(state.acquire);
+    }
+    this.afterChange();
+  }
+
+  // The answer to the state query: the board's state, or null when no browser shared one yet.
+  onSharedState(state, generation) {
+    if (state) {
+      this.adoptState(state);
+    }
+    this.loadFlash(generation, state === null);
+  }
+
   setLink(link) {
     this.status.link = link;
     this.refreshState();
   }
 
-  async loadFlash(generation) {
+  async loadFlash(generation, shareAfter) {
     let flash = null;
     try {
       const response = await fetch('/flash');
@@ -224,38 +259,54 @@ export class ScopeSession {
       flash = null;
     }
     if (generation === this.generation) {
-      this.onFlashResult(flash, generation);
+      this.onFlashResult(flash, generation, shareAfter);
     }
   }
 
-  onFlashResult(flash, generation) {
+  onFlashResult(flash, generation, shareAfter) {
     this.flash = flash;
     if (flash) {
       this.setLink('ready');
       this.pushEverything();
     } else {
       this.setLink('waiting');
-      setTimeout(() => this.retryFlash(generation), FLASH_RETRY_MS);
+      setTimeout(() => this.retryFlash(generation, shareAfter), FLASH_RETRY_MS);
+    }
+    if (flash && shareAfter) {
+      this.shareState();
     }
   }
 
-  retryFlash(generation) {
+  retryFlash(generation, shareAfter) {
     if (this.generation === generation && this.status.link === 'waiting') {
-      this.loadFlash(generation);
+      this.loadFlash(generation, shareAfter);
     }
   }
 
+  // Asks for the shared state first: the flash loads once the answer is in.
   startSession() {
     this.generation++;
     this.flash = null;
+    this.awaitingState = this.generation;
     this.setLink('waiting');
-    this.loadFlash(this.generation);
+    this.send(STATE_QUERY);
+  }
+
+  onEvent(event) {
+    if (event.event === 'scope_ready') {
+      this.startSession();
+    } else if ('state' in event && this.awaitingState === this.generation) {
+      this.awaitingState = 0;
+      this.onSharedState(event.state, this.generation);
+    } else if (event.state) {
+      this.adoptState(event.state);
+    }
   }
 
   onText(text) {
     const event = text.startsWith('{') ? parseEvent(text) : null;
-    if (event && event.event === 'scope_ready') {
-      this.startSession();
+    if (event) {
+      this.onEvent(event);
     } else if (Number.isFinite(Number(text))) {
       this.stats.roundTrip = performance.now() - Number(text);
     }
@@ -352,17 +403,22 @@ export class ScopeSession {
 
   // Run and Single rewrite the trigger: the Once sweep bits belong to a single only.
   setAcquire(acquire) {
+    this.applyAcquire(acquire);
+    if (this.flash && acquire === STOP) {
+      this.sendMode();
+      this.shareState();
+    } else if (this.flash) {
+      this.schedulePush(['trigger']);
+    }
+    this.refreshState();
+  }
+
+  applyAcquire(acquire) {
     const status = this.status;
     status.acquire = acquire;
     status.singleCount = acquire === RUN ? 0 : status.singleCount;
     status.singleFilling = false;
     this.latest = null;
-    if (this.flash && acquire === STOP) {
-      this.sendMode();
-    } else if (this.flash) {
-      this.schedulePush(['trigger']);
-    }
-    this.refreshState();
   }
 
   toggleRun() {
