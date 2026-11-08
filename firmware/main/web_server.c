@@ -26,6 +26,28 @@ extern const uint8_t index_html_gz_start[] asm("_binary_index_html_gz_start");
 extern const uint8_t index_html_gz_end[] asm("_binary_index_html_gz_end");
 extern const uint8_t settings_html_gz_start[] asm("_binary_settings_html_gz_start");
 extern const uint8_t settings_html_gz_end[] asm("_binary_settings_html_gz_end");
+extern const uint8_t manifest_start[] asm("_binary_manifest_webmanifest_start");
+extern const uint8_t manifest_end[] asm("_binary_manifest_webmanifest_end");
+extern const uint8_t icon_svg_start[] asm("_binary_icon_svg_start");
+extern const uint8_t icon_svg_end[] asm("_binary_icon_svg_end");
+extern const uint8_t icon_192_start[] asm("_binary_icon_192_png_start");
+extern const uint8_t icon_192_end[] asm("_binary_icon_192_png_end");
+extern const uint8_t icon_512_start[] asm("_binary_icon_512_png_start");
+extern const uint8_t icon_512_end[] asm("_binary_icon_512_png_end");
+extern const uint8_t icon_maskable_start[] asm("_binary_icon_maskable_png_start");
+extern const uint8_t icon_maskable_end[] asm("_binary_icon_maskable_png_end");
+
+typedef struct {
+    const char *type;
+    const uint8_t *start;
+    const uint8_t *end;
+} static_file_t;
+
+static const static_file_t MANIFEST = {"application/manifest+json", manifest_start, manifest_end};
+static const static_file_t ICON_SVG = {"image/svg+xml", icon_svg_start, icon_svg_end};
+static const static_file_t ICON_192 = {"image/png", icon_192_start, icon_192_end};
+static const static_file_t ICON_512 = {"image/png", icon_512_start, icon_512_end};
+static const static_file_t ICON_MASKABLE = {"image/png", icon_maskable_start, icon_maskable_end};
 
 static const char *TAG = "web";
 
@@ -33,6 +55,13 @@ static esp_err_t send_page(httpd_req_t *request, const uint8_t *start, const uin
     httpd_resp_set_type(request, "text/html");
     httpd_resp_set_hdr(request, "Content-Encoding", "gzip");
     return httpd_resp_send(request, (const char *)start, end - start);
+}
+
+static esp_err_t serve_static(httpd_req_t *request) {
+    const static_file_t *file = request->user_ctx;
+    httpd_resp_set_type(request, file->type);
+    httpd_resp_set_hdr(request, "Cache-Control", "max-age=86400");
+    return httpd_resp_send(request, (const char *)file->start, file->end - file->start);
 }
 
 static esp_err_t serve_index(httpd_req_t *request) {
@@ -201,6 +230,11 @@ static esp_err_t register_routes(httpd_handle_t server) {
         {.uri = "/networks", .method = HTTP_GET, .handler = serve_networks},
         {.uri = "/logs", .method = HTTP_GET, .handler = serve_logs},
         {.uri = "/update", .method = HTTP_POST, .handler = firmware_update_handle},
+        {.uri = "/manifest.webmanifest", .method = HTTP_GET, .handler = serve_static, .user_ctx = (void *)&MANIFEST},
+        {.uri = "/icon.svg", .method = HTTP_GET, .handler = serve_static, .user_ctx = (void *)&ICON_SVG},
+        {.uri = "/icon-192.png", .method = HTTP_GET, .handler = serve_static, .user_ctx = (void *)&ICON_192},
+        {.uri = "/icon-512.png", .method = HTTP_GET, .handler = serve_static, .user_ctx = (void *)&ICON_512},
+        {.uri = "/icon-maskable.png", .method = HTTP_GET, .handler = serve_static, .user_ctx = (void *)&ICON_MASKABLE},
     };
     esp_err_t err = ESP_OK;
     for (size_t i = 0; err == ESP_OK && i < sizeof(routes) / sizeof(routes[0]); i++) {

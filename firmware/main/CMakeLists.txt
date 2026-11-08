@@ -26,3 +26,8 @@ add_custom_target(web_bundle DEPENDS "${WEB_OUT}/index.html.gz" "${WEB_OUT}/sett
 add_dependencies(${COMPONENT_LIB} web_bundle)
 target_add_binary_data(${COMPONENT_LIB} "${WEB_OUT}/index.html.gz" BINARY)
 target_add_binary_data(${COMPONENT_LIB} "${WEB_OUT}/settings.html.gz" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "${WEB_DIR}/manifest.webmanifest" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "${WEB_DIR}/icons/icon.svg" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "${WEB_DIR}/icons/icon-192.png" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "${WEB_DIR}/icons/icon-512.png" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "${WEB_DIR}/icons/icon-maskable.png" BINARY)
