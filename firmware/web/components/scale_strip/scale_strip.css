@@ -1,5 +1,5 @@
 .scale-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 2px; }
-.scale-strip .scale-end { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.scale-strip .scale-end { display: flex; align-items: center; gap: 4px 10px; margin-left: auto; }
 .scale-strip .fidelity { color: var(--muted); cursor: help; }
 .scale-strip .fidelity[data-level="poor"] { color: var(--warn-fg); }
 .scale-strip .fidelity[data-level="unreliable"] { color: var(--bad-fg); }

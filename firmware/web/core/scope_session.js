@@ -1,6 +1,6 @@
 import {
   ADC_RANGE, CH1, GND, MODE_STOPPED, SAMPLING_RATES, SWEEP_AUTO,
-  autosetChannel, autosetPeriodSeconds, buildAllWrites, buildChannelWrites, buildCsv, buildForceTriggerWrites, buildSamplingWrites,
+  autosetChannel, autosetPeriodSeconds, defaultSettings, buildAllWrites, buildChannelWrites, buildCsv, buildForceTriggerWrites, buildSamplingWrites,
   buildTriggerWrites, captureSetup, channelMask, clip, createFrameSlot, displayedTriggerPosition, encodeMode, encodeWrites,
   fidelityLevel, forceGround, frameCount, frameMinMax, frequencyHz, isSingleCapture, isSingleFilling, levelDivAtMidpoint,
   levelDivForRange, measure, parseFlash, parseFrameInto, rateIndexForPeriod, readSequence, runModeFor, sampleScale,
@@ -64,6 +64,11 @@ function download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
+function fileName(extension) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return `owon-${stamp}.${extension}`;
+}
+
 // The link to the board: settings pushes, acquisition control, autoset and incoming frames.
 // `status` is reactive for the components; frames and slots stay plain for the drawing loop.
 export class ScopeSession {
@@ -85,6 +90,8 @@ export class ScopeSession {
       statsText: '-',
     });
     this.flash = null;
+    // The mounted ScopeScreen, for snapshots.
+    this.screen = null;
     this.capture = null;
     this.slots = [createFrameSlot(), createFrameSlot()];
     this.latest = null;
@@ -455,9 +462,21 @@ export class ScopeSession {
     if (columns.length > 0) {
       const capture = this.capture;
       const text = buildCsv(columns, samplingFor(capture.rateIndex).rate, displayedTriggerPosition(capture));
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      download(new Blob([text], { type: 'text/csv' }), `owon-${stamp}.csv`);
+      download(new Blob([text], { type: 'text/csv' }), fileName('csv'));
     }
+  }
+
+  savePng() {
+    if (this.screen) {
+      this.screen.snapshot().toBlob((blob) => download(blob, fileName('png')), 'image/png');
+    }
+  }
+
+  // Shared like any change, so every connected browser resets too.
+  restoreDefaults() {
+    assignSettings(this.store.settings, defaultSettings());
+    this.schedulePush(ALL_GROUPS);
+    this.afterChange();
   }
 
   // ------------------------------------------------------------ autoset (Python autoset)

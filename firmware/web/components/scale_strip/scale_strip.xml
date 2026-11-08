@@ -8,6 +8,12 @@
       <span class="scale-end">
         <span t-if="status.fidelity" class="fidelity" t-att-data-level="status.fidelity.level"
               t-att-title="fidelityTitle"><t t-esc="fidelityText"/></span>
+        <button type="button" class="icon-button" aria-label="Save as PNG" title="Save as PNG" t-on-click="savePng">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </button>
         <DisplayPopover/>
       </span>
     </div>

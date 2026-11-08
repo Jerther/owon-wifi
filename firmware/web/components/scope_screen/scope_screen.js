@@ -6,6 +6,7 @@ import { Component, onMounted, onWillUnmount, toRaw, useRef, useState } from '..
 import { cursorAxes, getPath } from '../../core/store.js';
 import { GridPainter } from './grid_painter.js';
 import { TracePainter } from './screen_painters.js';
+import { composeSnapshot, snapshotLines } from './screen_snapshot.js';
 import { TimebaseGestures } from './timebase_gestures.js';
 
 // The scope screen: grid and trace canvases, drag handles, V/T cursors and time base gestures.
@@ -54,9 +55,11 @@ export class ScopeScreen extends Component {
     this.resizeObserver.observe(this.traceRef.el);
     this.listeners.forEach(([type, listener]) => screen.addEventListener(type, listener, { passive: false }));
     this.frameRequest = requestAnimationFrame((now) => this.onFrame(now));
+    this.env.session.screen = this;
   }
 
   stop() {
+    this.env.session.screen = null;
     const screen = this.screenRef.el;
     cancelAnimationFrame(this.frameRequest);
     this.resizeObserver.disconnect();
@@ -122,6 +125,11 @@ export class ScopeScreen extends Component {
     } else if (!inFft && status.fft !== null) {
       status.fft = null;
     }
+  }
+
+  snapshot() {
+    const lines = snapshotLines(this.env.store, this.env.session.status);
+    return composeSnapshot([this.gridRef.el, this.traceRef.el], lines, this.tracePainter.ratio);
   }
 
   // ------------------------------------------------------------ time base gestures

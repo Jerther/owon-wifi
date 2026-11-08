@@ -1,5 +1,5 @@
 import { Component, useState } from '../../core/owl.js';
-import { COUPLING_NAMES, rangeLabel, timeLabel } from '../../core/labels.js';
+import { channelLabel, timeLabel } from '../../core/labels.js';
 import { DisplayPopover } from '../display_popover/display_popover.js';
 
 export class ScaleStrip extends Component {
@@ -17,8 +17,7 @@ export class ScaleStrip extends Component {
   }
 
   channelText(index) {
-    const channel = this.store.settings.channels[index];
-    return `CH${index + 1} ${rangeLabel(channel.rangeIndex, channel.probe)} ${COUPLING_NAMES[channel.coupling]}`;
+    return channelLabel(index, this.store.settings.channels[index]);
   }
 
   get timeText() {
@@ -28,6 +27,10 @@ export class ScaleStrip extends Component {
   get fidelityText() {
     const { level, ratio } = this.status.fidelity;
     return `Trace ${level}: ${ratio} samples/period`;
+  }
+
+  savePng() {
+    this.env.session.savePng();
   }
 
   get fidelityTitle() {

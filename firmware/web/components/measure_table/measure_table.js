@@ -1,16 +1,9 @@
 import { Component, useState } from '../../core/owl.js';
-import { formatSiPrecise, formatVoltsForChannel } from '../../scope_logic.js';
+import { MEASURES, measureText } from '../../core/labels.js';
 
 export class MeasureTable extends Component {
   static template = 'owon.MeasureTable';
-  static ROWS = [
-    { label: 'Frequency', key: 'frequency', unit: 'Hz' },
-    { label: 'Vpp', key: 'vpp', unit: 'V' },
-    { label: 'Vmax', key: 'vmax', unit: 'V' },
-    { label: 'Vmin', key: 'vmin', unit: 'V' },
-    { label: 'Vavg', key: 'vavg', unit: 'V' },
-    { label: 'Vrms', key: 'vrms', unit: 'V' },
-  ];
+  static ROWS = MEASURES;
   static CHANNELS = [0, 1];
 
   setup() {
@@ -19,15 +12,6 @@ export class MeasureTable extends Component {
   }
 
   valueText(channel, row) {
-    const result = this.status.measures[channel];
-    const value = result ? result[row.key] : null;
-    const known = value !== null && !(row.key === 'frequency' && value <= 0);
-    let text = '-';
-    if (known && row.unit === 'V') {
-      text = formatVoltsForChannel(value, this.store.settings.channels[channel]);
-    } else if (known) {
-      text = formatSiPrecise(value, row.unit);
-    }
-    return text;
+    return measureText(this.status.measures[channel], row, this.store.settings.channels[channel]);
   }
 }

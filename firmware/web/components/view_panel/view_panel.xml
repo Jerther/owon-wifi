@@ -9,6 +9,7 @@
       </div>
       <SegmentedChoice path="'ui.cursorChannel'" options="constructor.CURSOR_CHANNELS" disabled="cursorChannelDisabled"/>
       <button type="button" t-on-click="exportCsv">Export CSV</button>
+      <button type="button" t-on-click="restoreDefaults">Default settings</button>
     </section>
   </t>
 </templates>

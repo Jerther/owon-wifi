@@ -19,4 +19,10 @@ export class ViewPanel extends Component {
   exportCsv() {
     this.env.session.exportCsv();
   }
+
+  restoreDefaults() {
+    if (window.confirm('Reset the scope settings to their defaults? Every connected browser follows.')) {
+      this.env.session.restoreDefaults();
+    }
+  }
 }

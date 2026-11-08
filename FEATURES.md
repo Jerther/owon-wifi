@@ -3,7 +3,7 @@
 Sources: `OWON-VDS1022/doc/manual_en.pdf` (V1.3), `README.md`, `changes.txt` and the class list of `lib/owon-vds-tiny-1.1.5-cf19.jar`. Last checked 2026-11-07.
 "Fork" means an addition made by florentbr's fork, not by OWON.
 
-**Already done**: run/stop, single (also in roll mode), force, autoset; channel on/off, volts/div, position, DC/AC coupling, GND (software only), probe ×1/×10/×100; time base from 5 ns/div up (sin(x)/x below 5 µs/div), waveform quality label, roll mode, peak detect; edge trigger (auto/normal, CH1/CH2/EXT, rising/falling, level, position, 50 %), drag arrows for level, trigger position and channel position; measurements Frequency, Vpp, Vmax, Vmin, Vavg, Vrms; V and T cursors on CH1 or CH2; Hann FFT in dBV with peak readout; XY; CSV export; settings kept in the browser; grid brightness and trace width; value labels on the major grid lines, per channel in its colour; wheel and pinch on the screen step the time base.
+**Already done**: run/stop, single (also in roll mode), force, autoset; channel on/off, volts/div, position, DC/AC coupling, GND (software only), probe ×1/×10/×100; time base from 5 ns/div up (sin(x)/x below 5 µs/div), waveform quality label, roll mode, peak detect; edge trigger (auto/normal, CH1/CH2/EXT, rising/falling, level, position, 50 %), drag arrows for level, trigger position and channel position; measurements Frequency, Vpp, Vmax, Vmin, Vavg, Vrms; V and T cursors on CH1 or CH2; Hann FFT in dBV with peak readout; XY; CSV export; settings kept in the browser; grid brightness and trace width; value labels on the major grid lines, per channel in its colour; wheel and pinch on the screen step the time base; settings shared between browsers; installable web app; save the screen as PNG with a caption; default settings button.
 
 ## Left to do
 
@@ -42,9 +42,7 @@ Sources: `OWON-VDS1022/doc/manual_en.pdf` (V1.3), `README.md`, `changes.txt` and
 | Reference | Reference waveforms | 8 slots, from CH1, CH2 or Math | Missing |
 | Files | Export bin, txt, xls | | Missing (CSV only) |
 | Files | Open a saved waveform | | Missing |
-| Files | Save the screen as an image | png | Missing |
 | Utility | Self-calibration | Zero and gain calibration, saved to the scope's flash | Missing. Not needed for now: the calibration in flash (the user ran self-cal once, years ago, so it may be theirs rather than the factory's) is read at start-up and readings check out. If done: separate maintenance page, step-by-step procedure popup, back up the flash first, and a firmware change (the board now refuses flash writes) |
-| Utility | Default settings button | | Missing |
 | Utility | Keyboard shortcuts | Space, Enter, arrows, T… | Missing |
 
 Not worth doing: print, skins, language choice, LAN setup, SCPI server, 4-channel models.

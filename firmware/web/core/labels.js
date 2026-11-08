@@ -1,9 +1,36 @@
-import { SAMPLING_RATES, VOLT_RANGES, formatSi, samplingFor, timeRangeSeconds } from '../scope_logic.js';
+import {
+  SAMPLING_RATES, VOLT_RANGES, formatSi, formatSiPrecise, formatVoltsForChannel, samplingFor, timeRangeSeconds,
+} from '../scope_logic.js';
 
 export const COUPLING_NAMES = ['AC', 'DC', 'GND soft'];
+export const MEASURES = [
+  { label: 'Frequency', key: 'frequency', unit: 'Hz' },
+  { label: 'Vpp', key: 'vpp', unit: 'V' },
+  { label: 'Vmax', key: 'vmax', unit: 'V' },
+  { label: 'Vmin', key: 'vmin', unit: 'V' },
+  { label: 'Vavg', key: 'vavg', unit: 'V' },
+  { label: 'Vrms', key: 'vrms', unit: 'V' },
+];
 
 export function rangeLabel(rangeIndex, probe) {
   return `${formatSi((VOLT_RANGES[rangeIndex] * probe) / 10, 'V')}/div`;
+}
+
+export function channelLabel(index, channel) {
+  return `CH${index + 1} ${rangeLabel(channel.rangeIndex, channel.probe)} ${COUPLING_NAMES[channel.coupling]}`;
+}
+
+// result: one channel's measurements, or null before the first frame.
+export function measureText(result, measure, channel) {
+  const value = result ? result[measure.key] : null;
+  const known = value !== null && !(measure.key === 'frequency' && value <= 0);
+  let text = '-';
+  if (known && measure.unit === 'V') {
+    text = formatVoltsForChannel(value, channel);
+  } else if (known) {
+    text = formatSiPrecise(value, measure.unit);
+  }
+  return text;
 }
 
 export function timeLabel(rateIndex) {
