@@ -1,5 +1,24 @@
 body { padding: 8px 8px 24px; }
 .scope-app { max-width: 1100px; margin: 0 auto; }
+/* Narrow screens: buttons in a column beside the measurements, under the screen. */
+.scope-stage {
+  display: grid; grid-template-columns: minmax(0, 1fr) 96px; column-gap: 8px;
+  grid-template-areas: "screen screen" "scale scale" "info info" "measures actions";
+}
+.scope-stage > .scope-screen { grid-area: screen; }
+.scope-stage > .scale-strip { grid-area: scale; }
+.scope-stage > .info-line { grid-area: info; }
+.scope-stage > .action-bar { grid-area: actions; grid-template-columns: 1fr; align-content: start; margin-top: 0; }
+.scope-stage > .measure-table { grid-area: measures; }
+/* Wide screens: buttons and measurements beside the screen instead of under it. */
+@media (min-width: 1000px) {
+  .scope-app { max-width: 1500px; }
+  .scope-stage {
+    grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: auto auto 1fr auto auto;
+    grid-template-areas: "screen actions" "screen measures" "screen ." "scale ." "info ."; column-gap: 10px;
+  }
+  .scope-stage > .action-bar { grid-template-columns: 1fr 1fr; }
+}
 .scope-topbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 4px 2px 8px; }
 .scope-footer { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; margin-top: 14px; }
 .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 10px; }

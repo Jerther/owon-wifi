@@ -5,11 +5,13 @@
         <StatusPill/>
         <span class="muted numeric"><t t-esc="sampleInfo"/></span>
       </div>
-      <ScopeScreen/>
-      <ScaleStrip/>
-      <InfoLine/>
-      <ActionBar/>
-      <MeasureTable/>
+      <div class="scope-stage">
+        <ScopeScreen/>
+        <ScaleStrip/>
+        <InfoLine/>
+        <ActionBar/>
+        <MeasureTable/>
+      </div>
       <div class="panel-grid">
         <ChannelPanel index="0"/>
         <ChannelPanel index="1"/>
