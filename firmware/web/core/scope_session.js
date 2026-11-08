@@ -7,13 +7,14 @@ import {
   restoreSettings, samplingFor, timeRangeSeconds, triggerShift,
 } from '../scope_logic.js';
 import { reactive } from './owl.js';
-import { getPath, saveStore, setPath } from './store.js';
+import { getPath, restoreUi, saveStore, setPath } from './store.js';
 
 const RECONNECT_MS = 1000;
 const FLASH_RETRY_MS = 3000;
 const STATS_MS = 1000;
 const READOUT_MS = 250;
 const PUSH_DELAY_MS = 30;
+const SHARE_DELAY_MS = 50;
 const MIN_TRIGGER_WAIT_MS = 1000;
 const AUTOSET_SETTLE_MS = 300;
 const AUTOSET_MAX_TRIES = 10;
@@ -100,6 +101,7 @@ export class ScopeSession {
     this.generation = 0;
     this.pending = new Set();
     this.pushTimer = 0;
+    this.shareTimer = 0;
     // Generation whose state query is unanswered, 0 when none.
     this.awaitingState = 0;
     this.autosetRun = null;
@@ -120,12 +122,14 @@ export class ScopeSession {
     return getPath(this.store, path);
   }
 
-  // Paths start with settings., ui. or display.; only settings go to the board.
+  // Paths start with settings., ui. or display.; settings go to the board, ui to the other browsers.
   set(path, value, delay = PUSH_DELAY_MS) {
     this.keepTriggerVolts(path, value);
     setPath(this.store, path, value);
     if (path.startsWith('settings.')) {
       this.schedulePush(groupsFor(path), delay);
+    } else if (path.startsWith('ui.')) {
+      this.scheduleShare();
     }
     this.afterChange();
   }
@@ -206,6 +210,7 @@ export class ScopeSession {
     const groups = this.pending;
     this.pending = new Set();
     this.pushTimer = 0;
+    this.shareTimer = 0;
     if (this.flash) {
       this.sendWrites(this.writesForGroups(groups));
       this.sendMode();
@@ -230,14 +235,27 @@ export class ScopeSession {
     this.sendMode();
   }
 
-  // Every browser connected to the board shows the same settings: the last change wins.
+  // Every browser connected to the board shows the same settings, view and cursors: the last change wins.
   shareState() {
-    const { settings } = this.store;
-    this.send(JSON.stringify({ state: { settings, acquire: this.status.acquire } }));
+    const { settings, ui } = this.store;
+    this.send(JSON.stringify({ state: { settings, ui, acquire: this.status.acquire } }));
+  }
+
+  // View and cursor changes only: settings changes share once pushed to the board.
+  scheduleShare() {
+    if (this.shareTimer === 0) {
+      this.shareTimer = setTimeout(() => {
+        this.shareTimer = 0;
+        this.shareState();
+      }, SHARE_DELAY_MS);
+    }
   }
 
   adoptState(state) {
     assignSettings(this.store.settings, state.settings);
+    if (state.ui) {
+      Object.assign(this.store.ui, restoreUi(state.ui));
+    }
     if (ACQUIRE_MODES.includes(state.acquire) && state.acquire !== this.status.acquire) {
       this.applyAcquire(state.acquire);
     }

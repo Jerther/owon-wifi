@@ -14,7 +14,7 @@ function restoreFractions(saved, fallback) {
   return valid ? saved.map((value) => clip(value, 0, 1)) : fallback;
 }
 
-function restoreUi(saved) {
+export function restoreUi(saved) {
   const base = defaultUi();
   const source = saved || {};
   return {

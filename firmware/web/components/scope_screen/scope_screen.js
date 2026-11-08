@@ -345,8 +345,7 @@ export class ScopeScreen extends Component {
     const position = this.pointerPosition(event);
     if (drag !== null) {
       const fraction = drag.horizontal ? position.x / position.width : 1 - position.y / position.height;
-      this.env.store.ui[drag.list][drag.index] = clip(fraction, 0, 1);
-      this.env.session.markDirty();
+      this.env.session.set(`ui.${drag.list}.${drag.index}`, clip(fraction, 0, 1));
     } else {
       this.showGrabCursor(this.nearestCursor(position));
     }
@@ -362,9 +361,6 @@ export class ScopeScreen extends Component {
   }
 
   onTracePointerUp() {
-    if (this.cursorDrag !== null) {
-      this.cursorDrag = null;
-      this.env.session.save();
-    }
+    this.cursorDrag = null;
   }
 }
