@@ -719,13 +719,33 @@ export function levelDivAtMidpoint(low, high, captured, current) {
 const SI_PREFIXES = [[1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'u'], [1e-9, 'n']];
 
 export function formatSi(value, unit) {
+  return formatSiDigits(value, unit, false);
+}
+
+// Measurements keep their trailing zeros, which show their precision: "0.00 V", "1.50 kHz".
+export function formatSiPrecise(value, unit) {
+  return formatSiDigits(value, unit, true);
+}
+
+function formatSiDigits(value, unit, keepZeros) {
   const magnitude = Math.abs(value);
-  let text = `0 ${unit}`;
+  let text = keepZeros ? `0.00 ${unit}` : `0 ${unit}`;
   if (Number.isFinite(value) && magnitude > 0) {
     const entry = SI_PREFIXES.find(([factor]) => magnitude >= factor * 0.9995) || SI_PREFIXES[SI_PREFIXES.length - 1];
-    text = `${Number((value / entry[0]).toPrecision(3))} ${entry[1]}${unit}`;
+    const digits = (value / entry[0]).toPrecision(3);
+    text = `${keepZeros ? digits : Number(digits)} ${entry[1]}${unit}`;
   }
   return text;
+}
+
+// A voltage with the prefix of the channel's full scale and as many decimals as about 1/100 division,
+// so that a measurement keeps its width as it changes: "-0.160 V" and "-0.080 V" at 100 mV/div.
+export function formatVoltsForChannel(value, channel) {
+  const fullScale = fullScaleVolts(channel);
+  const entry = SI_PREFIXES.find(([factor]) => fullScale >= factor * 0.9995) || SI_PREFIXES[SI_PREFIXES.length - 1];
+  const resolution = voltsPerDivision(channel) / entry[0] / 100;
+  const decimals = Math.max(0, Math.round(-Math.log10(resolution)));
+  return `${(value / entry[0]).toFixed(decimals)} ${entry[1]}V`;
 }
 
 // ---------------------------------------------------------------- CSV

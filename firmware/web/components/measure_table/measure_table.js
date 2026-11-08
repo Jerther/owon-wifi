@@ -1,5 +1,5 @@
 import { Component, useState } from '../../core/owl.js';
-import { formatSi } from '../../scope_logic.js';
+import { formatSiPrecise, formatVoltsForChannel } from '../../scope_logic.js';
 
 export class MeasureTable extends Component {
   static template = 'owon.MeasureTable';
@@ -15,12 +15,19 @@ export class MeasureTable extends Component {
 
   setup() {
     this.status = useState(this.env.session.status);
+    this.store = useState(this.env.store);
   }
 
   valueText(channel, row) {
     const result = this.status.measures[channel];
     const value = result ? result[row.key] : null;
     const known = value !== null && !(row.key === 'frequency' && value <= 0);
-    return known ? formatSi(value, row.unit) : '-';
+    let text = '-';
+    if (known && row.unit === 'V') {
+      text = formatVoltsForChannel(value, this.store.settings.channels[channel]);
+    } else if (known) {
+      text = formatSiPrecise(value, row.unit);
+    }
+    return text;
   }
 }

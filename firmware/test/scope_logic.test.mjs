@@ -559,6 +559,26 @@ test('test_given_values_when_formatSi_then_prefix_and_three_digits', () => {
   assert.deepEqual(texts, ['12.3 mV', '1.5 kHz', '-2 us', '0 V', '1 V', '1 kHz']);
 });
 
+test('test_given_values_when_formatSiPrecise_then_trailing_zeros_kept', () => {
+  const texts = [
+    logic.formatSiPrecise(0, 'V'), logic.formatSiPrecise(1500, 'Hz'), logic.formatSiPrecise(-2e-6, 's'),
+    logic.formatSiPrecise(0.0123456, 'V'), logic.formatSiPrecise(999.9, 'Hz'),
+  ];
+
+  assert.deepEqual(texts, ['0.00 V', '1.50 kHz', '-2.00 us', '12.3 mV', '1.00 kHz']);
+});
+
+test('test_given_ranges_when_formatVoltsForChannel_then_decimals_follow_the_range', () => {
+  const at = (voltsPerDiv) => ({ rangeIndex: logic.VOLT_RANGES.indexOf(voltsPerDiv * 10), probe: 1 });
+  const texts = [
+    logic.formatVoltsForChannel(-0.16, at(0.1)), logic.formatVoltsForChannel(-0.08, at(0.1)),
+    logic.formatVoltsForChannel(5.04, at(1)), logic.formatVoltsForChannel(-0.0123, at(0.02)),
+    logic.formatVoltsForChannel(0, at(0.05)),
+  ];
+
+  assert.deepEqual(texts, ['-0.160 V', '-0.080 V', '5.04 V', '-12.3 mV', '0 mV']);
+});
+
 // ---- CSV
 
 test('test_given_two_columns_when_buildCsv_then_header_and_aligned_rows', () => {
