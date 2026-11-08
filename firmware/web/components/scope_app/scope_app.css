@@ -4,6 +4,14 @@ body { padding: 8px 8px 24px; }
 .scope-footer { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; margin-top: 14px; }
 .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 10px; }
 .control-panel { display: grid; gap: 10px; align-content: start; padding: 12px; }
+.control-panel.shrinks { align-self: start; }
 .control-head { display: flex; align-items: center; justify-content: space-between; }
+/* Grid rows animate to and from 0fr; the negative margin takes back the panel gap once collapsed. */
+.collapsible { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 0.25s ease, margin-top 0.25s ease, opacity 0.25s ease; }
+.collapsible.collapsed { grid-template-rows: 0fr; margin-top: -10px; opacity: 0; }
+.collapsible-body { display: grid; gap: 10px; min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .collapsible { transition: none; }
+}
 .control-line { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 8px; align-items: center; }
 .control-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
