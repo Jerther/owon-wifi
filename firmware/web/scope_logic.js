@@ -858,6 +858,20 @@ export function rateIndexForPeriod(periodSeconds) {
   return index;
 }
 
+// The signal period for autoset: the scope's counter, or the samples when the counter has no whole period,
+// as for a channel that is not the trigger source. 0 when neither has one.
+export function autosetPeriodSeconds(slot, rate) {
+  let period = 0;
+  if (slot.periodNum > 1) {
+    period = slot.timeSum / slot.periodNum / BASE_CLOCK;
+  } else {
+    const { low, high } = frameMinMax(slot);
+    const frequency = waveformFrequency(slot.samples, slot.first, low, high, rate);
+    period = frequency > 0 ? 1 / frequency : 0;
+  }
+  return period;
+}
+
 function firstRangeAtLeast(volts) {
   const index = VOLT_RANGES.findIndex((range) => range >= volts - 1e-12);
   return index < 0 ? VOLT_RANGES.length - 1 : index;

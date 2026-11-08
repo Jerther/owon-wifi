@@ -548,6 +548,22 @@ test('test_given_samples_before_first_when_waveformFrequency_then_ignored', () =
   assert.equal(logic.waveformFrequency(samples, 4900, -50, 50, 100000), 0);
 });
 
+test('test_given_counter_without_period_when_autosetPeriodSeconds_then_samples_give_it', () => {
+  const slot = logic.createFrameSlot();
+  slot.samples.forEach((_, i) => { slot.samples[i] = Math.floor(i / 25) % 2 ? 50 : -50; });
+
+  const period = logic.autosetPeriodSeconds(slot, 25e3);
+
+  assert.ok(Math.abs(period - 2e-3) < 1e-6);
+});
+
+test('test_given_counter_periods_when_autosetPeriodSeconds_then_counter_gives_it', () => {
+  const slot = logic.createFrameSlot();
+  Object.assign(slot, { timeSum: 1e6, periodNum: 10 });
+
+  assert.equal(logic.autosetPeriodSeconds(slot, 25e3), 1e-3);
+});
+
 // ---- formatting
 
 test('test_given_values_when_formatSi_then_prefix_and_three_digits', () => {

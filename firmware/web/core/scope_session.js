@@ -1,6 +1,6 @@
 import {
   ADC_RANGE, CH1, GND, MODE_STOPPED, SAMPLING_RATES, SWEEP_AUTO,
-  autosetChannel, buildAllWrites, buildChannelWrites, buildCsv, buildForceTriggerWrites, buildSamplingWrites,
+  autosetChannel, autosetPeriodSeconds, buildAllWrites, buildChannelWrites, buildCsv, buildForceTriggerWrites, buildSamplingWrites,
   buildTriggerWrites, captureSetup, channelMask, clip, createFrameSlot, displayedTriggerPosition, encodeMode, encodeWrites,
   fidelityLevel, forceGround, frameCount, frameMinMax, frequencyHz, isSingleCapture, isSingleFilling, levelDivAtMidpoint,
   levelDivForRange, measure, parseFlash, parseFrameInto, rateIndexForPeriod, readSequence, runModeFor, sampleScale,
@@ -427,8 +427,9 @@ export class ScopeSession {
   autosetRate(run, slot, amplitude) {
     const settings = this.store.settings;
     let changed = false;
-    if (slot.periodNum > 1 && amplitude > 20) {
-      const index = rateIndexForPeriod(slot.timeSum / slot.periodNum / 1e8);
+    const period = autosetPeriodSeconds(slot, samplingFor(settings.rateIndex).rate);
+    if (period > 0 && amplitude > 20) {
+      const index = rateIndexForPeriod(period);
       changed = index !== settings.rateIndex && index < run.rateLimit;
       if (changed) {
         settings.rateIndex = index;
