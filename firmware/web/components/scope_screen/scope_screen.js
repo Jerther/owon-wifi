@@ -278,13 +278,15 @@ export class ScopeScreen extends Component {
     }
   }
 
-  // A double tap is the bench scope's "push the knob": back to centre.
+  // A double tap is the bench scope's "push the knob": the trigger level goes to 50 % of the signal, the others to centre.
   onHandleTap(drag) {
     const now = performance.now();
     const last = this.lastTap;
     const sameHandle = last !== null && last.kind === drag.kind && last.index === drag.index;
     const isDouble = sameHandle && now - last.at < ScopeScreen.DOUBLE_TAP_MS;
-    if (isDouble) {
+    if (isDouble && drag.kind === 'level') {
+      this.env.session.setLevelToMiddle();
+    } else if (isDouble) {
       this.env.session.set(ScopeScreen.dragPath(drag), drag.kind === 'position' ? 0.5 : 0);
     }
     this.lastTap = isDouble ? null : { kind: drag.kind, index: drag.index, at: now };
@@ -332,12 +334,23 @@ export class ScopeScreen extends Component {
 
   onTracePointerMove(event) {
     const drag = this.cursorDrag;
+    const position = this.pointerPosition(event);
     if (drag !== null) {
-      const position = this.pointerPosition(event);
       const fraction = drag.horizontal ? position.x / position.width : 1 - position.y / position.height;
       this.env.store.ui[drag.list][drag.index] = clip(fraction, 0, 1);
       this.env.session.markDirty();
+    } else {
+      this.showGrabCursor(this.nearestCursor(position));
     }
+  }
+
+  // A resize pointer over a V or T cursor shows that it can be dragged.
+  showGrabCursor(cursor) {
+    let pointer = '';
+    if (cursor !== null) {
+      pointer = cursor.horizontal ? 'ew-resize' : 'ns-resize';
+    }
+    this.traceRef.el.style.cursor = pointer;
   }
 
   onTracePointerUp() {

@@ -52,6 +52,15 @@
   --neutral-bg: #ebe9e2;
   --neutral-fg: #4a4942;
   --shadow: 0 6px 24px #26251f26;
+  /* Segmented controls: a sunken track and a raised white pill for the chosen option. */
+  --track: #dedbd0;
+  --track-fg: #57554c;
+  --pressed-bg: #ffffff;
+  --pressed-fg: #1a56a0;
+  --pressed-ring: #b9b6aa;
+  --pressed-shadow: 0 1px 3px #26251f4d;
+  /* A lone toggle that is on, told apart from plain action buttons. */
+  --toggled-bg: #dfeafa;
 }
 
 * { box-sizing: border-box; }
@@ -65,6 +74,11 @@ button, select {
 }
 button { cursor: pointer; touch-action: manipulation; }
 button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+:root[data-theme="light"] button[aria-pressed] { background: var(--track); border-color: transparent; color: var(--track-fg); }
+:root[data-theme="light"] button[aria-pressed="true"] {
+  background: var(--pressed-bg); border-color: var(--pressed-ring); color: var(--pressed-fg); font-weight: 600;
+  box-shadow: var(--pressed-shadow);
+}
 button:disabled, select:disabled, input:disabled { opacity: 0.4; cursor: default; }
 input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: var(--accent); }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }

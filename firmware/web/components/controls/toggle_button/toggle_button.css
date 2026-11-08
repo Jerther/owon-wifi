@@ -1,1 +1,2 @@
 .toggle-button { min-width: 4.5em; }
+:root[data-theme="light"] .toggle-button[aria-pressed="true"] { background: var(--toggled-bg); border-color: var(--pressed-fg); }

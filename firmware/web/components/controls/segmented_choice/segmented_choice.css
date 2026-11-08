@@ -1,3 +1,5 @@
 .segmented-choice { display: flex; gap: 4px; }
 .segmented-choice > button { flex: 1; padding: 0 4px; }
 .segmented-choice sub { font-size: 0.65em; line-height: 0; margin-left: 1px; }
+:root[data-theme="light"] .segmented-choice { gap: 3px; padding: 3px; border-radius: 10px; background: var(--track); }
+:root[data-theme="light"] .segmented-choice > button { min-height: 38px; }

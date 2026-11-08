@@ -3,3 +3,5 @@
 .segmented button + button { margin-left: -1px; }
 .segmented button:first-child { border-radius: 8px 0 0 8px; }
 .segmented button:last-child { border-radius: 0 8px 8px 0; }
+:root[data-theme="light"] .segmented { gap: 3px; padding: 3px; border-radius: 10px; background: var(--track); }
+:root[data-theme="light"] .segmented button { min-height: 38px; margin-left: 0; border-radius: 8px; }
