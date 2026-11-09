@@ -39,6 +39,8 @@ Do not share built binaries: they contain OWON's FPGA files.
 1. Join the board's network `OWON-VDS1022` with the password from `wifi_secrets.h`. The page opens at `http://192.168.4.1/`.
 2. Optional: on the settings page (`/settings`), join your own network. The board then also answers at `http://owon-scope.local/` and keeps its own network.
 
+To stick on the box: [docs/owon-scope-qr.svg](docs/owon-scope-qr.svg) opens `http://owon-scope.local/`. A second QR code to join the board's network is worth making too, for example with `qrencode -o firmware/wifi_qr.png 'WIFI:T:WPA;S:OWON-VDS1022;P:<password>;;'`. It holds the password, so it stays out of git (`firmware/wifi_qr.png` is ignored).
+
 ## Layout
 
 | Path | Contents |
