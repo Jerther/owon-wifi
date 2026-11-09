@@ -10,6 +10,7 @@ Features: run/stop/single/auto-set, both channels, time bases down to 5 ns/div, 
 
 - ESP32-S3 dev board with two USB-C ports and 16 MB flash / 8 MB octal PSRAM (N16R8), such as the ESP32-S3-DevKitC-1 clones based on the YD-ESP32-S3 layout.
 - Close the board's **USB-OTG** solder bridge so its native USB port powers the scope. Never plug that port into a computer afterwards.
+- Bridge diode **D1** next to the COM port ([photo](docs/board-d1.jpg)): through it the scope's voltage is too low and it never shows up. Then power the board from the COM port only.
 - Native USB port → scope (USB-A to USB-C cable). COM port ← any USB-C 5 V source of about 1 A: brick, power bank, phone.
 
 A weak source shows up at start-up: the scope drops off USB right after its FPGA is loaded. Details in [docs/PROJECT.md](docs/PROJECT.md).

@@ -80,7 +80,9 @@ Layout and photos match the [YD-ESP32-S3 V1.4 schematic](https://github.com/deep
 - **USB port** = left port from the front (native, GPIO19 = D−, GPIO20 = D+) = USB host to the scope.
 - Close the **"USB-OTG" solder bridge** (back of the board, near the USB port, open as delivered). It shorts D2, so the 5 V rail feeds the USB port's VBUS.
 - With the bridge closed, **never plug the USB port into a PC**.
-- The scope's power passes through D1, so it sees the brick's voltage minus one diode drop. The diodes are SMA parts marked "SJ", rating not identified. Measure the drop with the scope running; if it's too low, feed the 5Vin pin with the IN-OUT bridge closed (shorts D3, no diode between the pin and the rail).
+- **Bridge D1** with solder or a short wire: the bottom diode of the three-diode stack, the only one with a trace to the COM port. Through D1 the scope gets the brick's voltage minus one diode drop, which is not enough: on 2026-11-08, with the USB-OTG bridge closed and two strong bricks on COM alone, the board ran but never saw the scope (its LED cycled long red, short green). Bridging D1 on board 1 fixed it the same day: the scope runs from a brick on COM alone. Once D1 is bridged, nothing blocks backfeed: power the board from one source only (never COM and the 5Vin pin together). The diodes are SMA parts marked "SJ", rating not identified. Alternative: leave D1 and feed the 5Vin pin with the IN-OUT bridge closed (shorts D3).
+
+  ![Board 1 from the front: D1 is the bottom diode of the stack next to the USB port](board-d1.jpg)
 - `RGB` bridge (front, looks open): closes GPIO48 to the WS2812 LED. Optional, useful as a status LED.
 - No USB PD / QC on the board: chargers stay at 5 V. The schematic has 5.1 kΩ on the CC lines; if a USB-C to USB-C charger doesn't power the board anyway, use an A-to-C cable.
 - Module is labelled "ESP32-S3-N16R8" with a non-Espressif FCC ID (`DA06P-…`): a clone module, but `esptool` confirms the specs on board 1: ESP32-S3 QFN56 rev v0.2, 16 MB quad flash (manufacturer `0x68`, device `0x4018`), embedded 8 MB PSRAM (`AP_3v3`). The second board is not checked yet.
@@ -100,7 +102,7 @@ No battery in the box: it runs from whatever USB-C 5 V source is at hand, into t
 
 | Source | Notes |
 |---|---|
-| Brick | 5 V / 2 A is plenty; 5.1–5.2 V output leaves margin for D1 |
+| Brick | 5 V / 2 A is plenty, once D1 is bridged |
 | Power bank | 600 mA is above the usual low-current shut-off. Some banks still cut out after a while |
 | Phone | USB-C to USB-C cable; the 5.1 kΩ CC resistors make it source power. Often limited to ~500 mA, which may fail during the FPGA load. Drains the phone at ~3 W |
 
@@ -123,7 +125,7 @@ Build, setup and layout: see the [README](../README.md). Tests: `node --test fir
 ## Next steps
 
 1. **Firmware milestone 1 (the risky one)** — ESP-IDF, USB host: enumerate the scope despite its odd descriptors, claim interface 0, `GET_MACHINE`, `READ_FLASH`, upload the FPGA, read one frame. Logs over the COM port. Code in [firmware/](../firmware/) (ESP-IDF v5.2.5). **Works on board 1 since 2026-11-06**: the scope (flash version `V2.5.0`, FPGA V1, serial number read) enumerates, the FPGA loads in 1.7 s, and CH1 frames arrive. It only reads the scope's flash, never writes it. Frames take about 84 ms, probably mostly the fixed 60 ms wait after a "not ready" reply, to tune in milestone 2.
-   - **Power finding**: with one PC port on COM as the only source (USB-OTG bridge closed), the scope drops off USB right after the last FPGA part, twice out of two full uploads, and can then stay stuck until replugged. With the Y cable's second plug on extra power, it works. **A 5 V brick on COM alone, the final setup, also works** (no logs in that setup: an LED blinked once per second, matching the frame log lines). So the PC port was the weak link, not the board's diode. For development with logs on the PC, keep the Y cable's second plug on extra power. The voltage margin at the scope is not measured.
+   - **Power finding**: with one PC port on COM as the only source (USB-OTG bridge closed), the scope drops off USB right after the last FPGA part, twice out of two full uploads, and can then stay stuck until replugged. With the Y cable's second plug on extra power, it works. **A 5 V brick on COM alone, the final setup, also works** (no logs in that setup: an LED blinked once per second, matching the frame log lines). So the PC port was the weak link, not the board's diode. *Later contradicted (2026-11-08): two bricks on COM alone failed; that early test may still have had the Y cable's extra power on the scope. D1 must be bridged, see Board power plan.* For development with logs on the PC, keep the Y cable's second plug on extra power. The voltage margin at the scope is not measured.
    - With the bridge open, the scope never appeared on the USB port, consistent with the schematic. The bridge is now closed on board 1.
 2. Milestone 2 — acquisition loop + keepalive + binary WebSocket stream. **Works on board 1 since 2026-11-06**, for now on an open test access point `OWON-VDS1022` at `http://192.168.4.1/`: both channels at about 28 refreshes/s from the scope at 250 kS/s, shown live in a phone browser with acceptable lag. A slow client only misses frames; it can't stall the scope's keepalive. Browser-to-scope commands (settings) are not done yet.
 3. Milestone 3 — Wi-Fi, updates and logs. **Works on board 1 since 2026-11-06** (firmware 0.3.2):
