@@ -6,7 +6,12 @@ Use an OWON VDS1022/VDS1022I USB oscilloscope from any phone, tablet or computer
 
 Features: run/stop/single/auto-set, both channels, time bases down to 5 ns/div, edge trigger with draggable markers, measurements, cursors, FFT, XY, roll mode, CSV and PNG export, light and dark themes, settings shared between browsers, firmware updates over Wi-Fi. What is left compared to OWON's own app: [docs/FEATURES.md](docs/FEATURES.md).
 
+[![The web app on a computer, showing a 1 kHz square wave on CH1](docs/screenshot-desktop-small.png)](docs/screenshot-desktop.png)
+[![The same web app on a phone](docs/screenshot-mobile-small.png)](docs/screenshot-mobile.png)
+
 ## Hardware
+
+[![The board in its case, on top of the scope, with QR codes for the page and the Wi-Fi network](docs/scope-with-board-small.png)](docs/scope-with-board.png)
 
 - ESP32-S3 dev board with two USB-C ports and 16 MB flash / 8 MB octal PSRAM (N16R8), such as the ESP32-S3-DevKitC-1 clones based on the YD-ESP32-S3 layout.
 - Close the board's **USB-OTG** solder bridge so its native USB port powers the scope. Never plug that port into a computer afterwards.
